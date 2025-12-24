@@ -24,7 +24,7 @@ const Header: React.FC<HeaderProps> = ({ onOpenAddModal, theme, onToggleTheme })
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-in-out border-b ${
         isScrolled 
           ? 'bg-white/80 dark:bg-slate-950/80 backdrop-blur-md py-2 border-slate-200 dark:border-slate-800 shadow-sm' 
-          : 'bg-transparent py-4 border-transparent'
+          : 'bg-transparent py-3 border-transparent'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
