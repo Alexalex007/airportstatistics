@@ -1,0 +1,5 @@
+{
+  "name": "SkyMetrics - 機場客運量分析",
+  "description": "A comprehensive dashboard for visualizing and analyzing airport passenger traffic data using Gemini 2.5 and Google Search grounding.",
+  "requestFramePermissions": []
+}
