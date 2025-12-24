@@ -109,35 +109,18 @@ export const fetchAirportStats = async (query: string, year: number = 2024): Pro
   // Construct chart data
   const chartData: ChartDataPoint[] = [];
   
-  // We determine how many months to show based on the data available in the requested year.
-  // If requested year is empty (e.g., 2025), we might show 12 empty months or nothing.
-  // Let's show 12 months structure if it's a valid year, but empty values if no data.
-  const loopCount = currentStats.length > 0 ? currentStats.length : 12;
+  // Always show 12 months to allow comparison data to appear even if current year data is missing
+  const loopCount = 12;
 
   for (let i = 0; i < loopCount; i++) {
     const passengers = currentStats[i] || 0;
     const comparison = prevStats[i]; // undefined if not available
 
-    // Only add to chart if we have current data, OR if we want to show empty slots (let's show only if we have data or if it's the current year view but empty)
-    // To keep it clean: if current stats exist, map them.
-    if (currentStats.length > 0) {
-       chartData.push({
-         period: `${year} ${MONTH_NAMES[i]}`,
-         passengers: passengers,
-         comparison: comparison
-       });
-    }
-  }
-  
-  // If chartData is empty (e.g. 2025), maybe initialize empty months so the chart renders empty grid
-  if (chartData.length === 0) {
-      MONTH_NAMES.forEach(month => {
-          chartData.push({
-              period: `${year} ${month}`,
-              passengers: 0,
-              comparison: prevStats[MONTH_NAMES.indexOf(month)] // Show previous year even if current is 0? Optional.
-          });
-      });
+    chartData.push({
+      period: `${year} ${MONTH_NAMES[i]}`,
+      passengers: passengers,
+      comparison: comparison
+    });
   }
 
   // Get summary for that year, fallback to generic or latest

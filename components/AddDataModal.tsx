@@ -44,6 +44,11 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
             const index = MONTH_NAMES.indexOf(monthStr);
             
             if (index !== -1) {
+                // If passengers is 0, it might mean "no data" or "0". 
+                // For editing, let's show '0' if it's there. User can clear it if they want empty.
+                // However, in our system we treat missing future as 0. 
+                // To be cleaner, we could leave it blank if 0 and comparison exists? 
+                // Let's just show 0 for transparency.
                 newPassengers[index] = point.passengers.toString();
                 if (point.comparison !== undefined && point.comparison !== null) {
                     newComparisons[index] = point.comparison.toString();
@@ -98,16 +103,12 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
     let monthsCount = 0;
 
     MONTH_NAMES.forEach((month, idx) => {
-      // Treat input "0" as 0, but empty string as no data (skip)
-      // However, if user explicitly types 0, we should record it.
-      // Logic: If string is not empty, parse it.
-      
       const pStr = passengers[idx];
       const cStr = comparisons[idx];
 
-      // Only add to chart if current year data is provided (not empty string)
-      if (pStr !== '') {
-        const pVal = parseInt(pStr, 10);
+      // Add to chart if either current OR previous year data is provided
+      if (pStr !== '' || cStr !== '') {
+        const pVal = pStr === '' ? 0 : parseInt(pStr, 10);
         const cVal = cStr !== '' ? parseInt(cStr, 10) : undefined;
         
         chartData.push({
@@ -125,7 +126,7 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
     });
 
     if (monthsCount === 0) {
-      alert("請至少輸入一個月份的數據");
+      alert("請至少輸入一個月份的數據 (本期或同期皆可)");
       return;
     }
 

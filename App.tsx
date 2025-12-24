@@ -240,7 +240,7 @@ const App: React.FC = () => {
                            />
                            
                            {/* Mini Table for Exact Numbers */}
-                           {state.data.chartData.some(d => d.passengers > 0) && (
+                           {state.data.chartData.some(d => d.passengers > 0 || (d.comparison && d.comparison > 0)) && (
                              <div className="mt-6 overflow-x-auto">
                                 <table className="min-w-full text-sm text-left text-slate-500">
                                   <thead className="text-xs text-slate-700 uppercase bg-slate-50">
@@ -253,17 +253,31 @@ const App: React.FC = () => {
                                   </thead>
                                   <tbody>
                                     {state.data.chartData.map((row, idx) => {
-                                        if (row.passengers === 0 && (!row.comparison || row.comparison === 0)) return null; // Skip empty rows
+                                        // Show row if either passenger data OR comparison data exists (is greater than 0)
+                                        // We treat 0 as "missing" for rendering mostly, but if both are truly 0/undefined, skip.
+                                        if ((!row.passengers || row.passengers === 0) && (!row.comparison || row.comparison === 0)) return null;
 
-                                        const growth = row.comparison && row.comparison > 0 ? ((row.passengers - row.comparison) / row.comparison * 100).toFixed(1) : '-';
+                                        // Only calculate growth if we have current year data. 
+                                        // If passengers is 0 (missing), growth is '-'
+                                        const hasCurrent = row.passengers > 0;
+                                        const hasPrev = row.comparison && row.comparison > 0;
+                                        
+                                        const growth = (hasCurrent && hasPrev) 
+                                            ? ((row.passengers - row.comparison!) / row.comparison! * 100).toFixed(1) 
+                                            : '-';
+                                            
                                         return (
                                           <tr key={idx} className="border-b hover:bg-slate-50">
                                             <td className="px-4 py-2 font-medium text-slate-900">{row.period}</td>
-                                            <td className="px-4 py-2 text-right font-mono text-slate-700">{new Intl.NumberFormat('zh-TW').format(row.passengers)}</td>
-                                            <td className="px-4 py-2 text-right font-mono text-slate-500">{row.comparison ? new Intl.NumberFormat('zh-TW').format(row.comparison) : '-'}</td>
+                                            <td className="px-4 py-2 text-right font-mono text-slate-700">
+                                                {row.passengers > 0 ? new Intl.NumberFormat('zh-TW').format(row.passengers) : '-'}
+                                            </td>
+                                            <td className="px-4 py-2 text-right font-mono text-slate-500">
+                                                {row.comparison ? new Intl.NumberFormat('zh-TW').format(row.comparison) : '-'}
+                                            </td>
                                             <td className="px-4 py-2 text-right">
                                               <span className={`${parseFloat(growth) > 0 ? 'text-green-600' : parseFloat(growth) < 0 ? 'text-red-600' : 'text-slate-400'}`}>
-                                                {growth !== '-' && parseFloat(growth) > 0 ? '+' : ''}{growth}%
+                                                {growth !== '-' && parseFloat(growth) > 0 ? '+' : ''}{growth !== '-' ? growth + '%' : '-'}
                                               </span>
                                             </td>
                                           </tr>
