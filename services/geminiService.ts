@@ -28,7 +28,7 @@ const AIRPORT_RAW_DATA: Record<string, {
     }
   },
   "TPE": {
-    name: "台灣桃園機場 (TPE)",
+    name: "臺灣桃園國際機場 (TPE)",
     sources: [{ title: "桃園機場統計報表", uri: "https://www.taoyuan-airport.com" }],
     summaries: {
       2026: "2026年數據尚未發布。",
@@ -44,7 +44,7 @@ const AIRPORT_RAW_DATA: Record<string, {
     }
   },
   "SIN": {
-    name: "新加坡樟宜機場 (SIN)",
+    name: "新加坡樟宜國際機場 (SIN)",
     sources: [{ title: "Changi Airport Group", uri: "https://www.changiairport.com" }],
     summaries: {
       2026: "2026年數據尚未發布。",
@@ -60,7 +60,7 @@ const AIRPORT_RAW_DATA: Record<string, {
     }
   },
   "BKK": {
-    name: "曼谷素萬那普機場 (BKK)",
+    name: "曼谷素萬那普國際機場 (BKK)",
     sources: [{ title: "Airports of Thailand (AOT) Report", uri: "https://www.airportthai.co.th" }],
     summaries: {
       2026: "2026年數據尚未發布。",
@@ -76,7 +76,7 @@ const AIRPORT_RAW_DATA: Record<string, {
     }
   },
   "ICN": {
-    name: "首爾仁川機場 (ICN)",
+    name: "首爾仁川國際機場 (ICN)",
     sources: [{ title: "Incheon Airport Stats", uri: "https://www.airport.kr" }],
     summaries: {
       2026: "2026年數據尚未發布。",

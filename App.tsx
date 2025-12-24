@@ -3,16 +3,17 @@ import Header from './components/Header';
 import HeroSearch from './components/HeroSearch';
 import StatsChart from './components/StatsChart';
 import AddDataModal from './components/AddDataModal';
+import ComparisonModal from './components/ComparisonModal';
 import { fetchAirportStats } from './services/geminiService';
 import { SearchState, AirportData, AirportDefinition } from './types';
-import { AlertCircle, Users, Trash2, Edit, TrendingUp, TrendingDown } from 'lucide-react';
+import { AlertCircle, Users, Trash2, Edit, TrendingUp, TrendingDown, ArrowRight, BarChart2 } from 'lucide-react';
 
 const DEFAULT_AIRPORTS: AirportDefinition[] = [
   { code: 'HKG', name: '香港國際機場' },
-  { code: 'TPE', name: '台灣桃園機場' },
-  { code: 'SIN', name: '新加坡樟宜機場' },
-  { code: 'BKK', name: '曼谷素萬那普機場' },
-  { code: 'ICN', name: '首爾仁川機場' },
+  { code: 'TPE', name: '臺灣桃園國際機場' },
+  { code: 'SIN', name: '新加坡樟宜國際機場' },
+  { code: 'BKK', name: '曼谷素萬那普國際機場' },
+  { code: 'ICN', name: '首爾仁川國際機場' },
   { code: 'MNL', name: '馬尼拉國際機場' }
 ];
 
@@ -94,6 +95,9 @@ const App: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingData, setEditingData] = useState<{code: string, name: string, data: AirportData | null} | null>(null);
+  
+  // Comparison Modal State
+  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
 
   const allAirports = [...DEFAULT_AIRPORTS, ...customAirports];
 
@@ -491,6 +495,33 @@ const App: React.FC = () => {
             })}
           </div>
 
+          {/* Comparison Lab Entry Button */}
+          <div className="mt-12 mb-4">
+            <button
+              onClick={() => setIsComparisonOpen(true)}
+              className="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-1 shadow-xl transition-all hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99]"
+            >
+              <div className="relative flex items-center justify-between rounded-xl bg-white dark:bg-slate-900 px-6 py-5 transition-all group-hover:bg-opacity-90 dark:group-hover:bg-opacity-90">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    <BarChart2 size={24} />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      開啟多機場趨勢比對
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      選擇多個機場進行交叉分析，生成高清晰度折線圖表
+                    </p>
+                  </div>
+                </div>
+                <div className="text-slate-300 dark:text-slate-600 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all">
+                  <ArrowRight size={24} />
+                </div>
+              </div>
+            </button>
+          </div>
+
         </div>
       </main>
       
@@ -500,6 +531,14 @@ const App: React.FC = () => {
         onSave={handleSaveCustomData}
         currentYear={selectedYear}
         initialData={editingData}
+      />
+
+      <ComparisonModal
+        isOpen={isComparisonOpen}
+        onClose={() => setIsComparisonOpen(false)}
+        allAirports={allAirports}
+        results={results}
+        year={selectedYear}
       />
 
       <footer className="bg-slate-900 dark:bg-slate-950 text-slate-400 py-8 border-t border-slate-800">
