@@ -22,6 +22,7 @@ const calculateTotal = (data: AirportData | null): number => {
 };
 
 const App: React.FC = () => {
+  const [selectedYear, setSelectedYear] = useState<number>(2024);
   const [results, setResults] = useState<Record<string, SearchState>>(() => {
     const initial: Record<string, SearchState> = {};
     AIRPORTS.forEach(ap => {
@@ -32,12 +33,20 @@ const App: React.FC = () => {
   
   const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
 
-  const loadManualData = useCallback(async () => {
-    // Load all data from our static "manual" database
+  const loadManualData = useCallback(async (year: number) => {
+    setResults(prev => {
+        const next = { ...prev };
+        AIRPORTS.forEach(ap => {
+            next[ap.code] = { ...next[ap.code], isLoading: true };
+        });
+        return next;
+    });
+
     const promises = AIRPORTS.map(async (ap) => {
       try {
         const query = `${ap.code} ${ap.name}`;
-        const data = await fetchAirportStats(query);
+        // Pass the year to the service
+        const data = await fetchAirportStats(query, year);
         
         setResults(prev => ({
           ...prev,
@@ -55,10 +64,17 @@ const App: React.FC = () => {
     setLastUpdated(new Date());
   }, []);
 
-  // Load data immediately on mount
+  // Handle year change
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+    // Don't need to call loadManualData here explicitly if we add year to useEffect dependency,
+    // but calling it explicitly is safer for cleaner effect logic.
+  };
+
+  // Load data when year changes
   useEffect(() => {
-    loadManualData();
-  }, [loadManualData]);
+    loadManualData(selectedYear);
+  }, [selectedYear, loadManualData]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -66,12 +82,20 @@ const App: React.FC = () => {
       
       <main className="flex-grow">
         <HeroSearch 
-          onSearch={loadManualData} 
+          onSearch={() => loadManualData(selectedYear)} 
           lastUpdated={lastUpdated}
+          selectedYear={selectedYear}
+          onYearChange={handleYearChange}
         />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           
+          <div className="flex items-center mb-6">
+             <h2 className="text-2xl font-bold text-slate-800 border-l-4 border-blue-600 pl-4">
+               {selectedYear} 年統計概覽
+             </h2>
+          </div>
+
           <div className="space-y-12">
             {AIRPORTS.map((airport) => {
               const state = results[airport.code];
@@ -80,7 +104,7 @@ const App: React.FC = () => {
               const totalPassengers = calculateTotal(state.data);
 
               return (
-                <div key={airport.code} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in">
+                <div key={airport.code} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in transition-all">
                   
                   {/* Airport Header */}
                   <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between">
@@ -88,14 +112,15 @@ const App: React.FC = () => {
                        <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded mr-3">{airport.code}</span>
                        <h2 className="text-xl font-bold text-slate-800">{airport.name}</h2>
                     </div>
-                    {/* Only show "Updating" if actually loading, which is fast now */}
                     {state.isLoading ? (
-                      <span className="text-sm text-slate-400">載入中...</span>
+                      <span className="text-sm text-slate-400">更新中...</span>
                     ) : (
                       state.data && (
                        <div className="flex items-center text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
                           <Users size={16} className="mr-2" />
-                          <span className="text-sm font-semibold">統計總數: {new Intl.NumberFormat('zh-TW').format(totalPassengers)} 人次</span>
+                          <span className="text-sm font-semibold">
+                            {selectedYear} 總客運量: {new Intl.NumberFormat('zh-TW').format(totalPassengers)} 人次
+                          </span>
                        </div>
                       )
                     )}
@@ -117,39 +142,43 @@ const App: React.FC = () => {
                         <div className="lg:col-span-2">
                            <StatsChart 
                              data={state.data.chartData} 
-                             title={`${airport.code} 客運量走勢`} 
+                             title={`${airport.code} ${selectedYear} 客運量走勢`} 
                            />
                            
                            {/* Mini Table for Exact Numbers */}
-                           <div className="mt-6 overflow-x-auto">
-                              <table className="min-w-full text-sm text-left text-slate-500">
-                                <thead className="text-xs text-slate-700 uppercase bg-slate-50">
-                                  <tr>
-                                    <th className="px-4 py-2">月份</th>
-                                    <th className="px-4 py-2 text-right">本期 (人次)</th>
-                                    <th className="px-4 py-2 text-right">去年同期 (人次)</th>
-                                    <th className="px-4 py-2 text-right">增長率</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {state.data.chartData.map((row, idx) => {
-                                      const growth = row.comparison ? ((row.passengers - row.comparison) / row.comparison * 100).toFixed(1) : '-';
-                                      return (
-                                        <tr key={idx} className="border-b hover:bg-slate-50">
-                                          <td className="px-4 py-2 font-medium text-slate-900">{row.period}</td>
-                                          <td className="px-4 py-2 text-right font-mono text-slate-700">{new Intl.NumberFormat('zh-TW').format(row.passengers)}</td>
-                                          <td className="px-4 py-2 text-right font-mono text-slate-500">{row.comparison ? new Intl.NumberFormat('zh-TW').format(row.comparison) : '-'}</td>
-                                          <td className="px-4 py-2 text-right">
-                                            <span className={`${parseFloat(growth) > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                              {growth !== '-' && parseFloat(growth) > 0 ? '+' : ''}{growth}%
-                                            </span>
-                                          </td>
-                                        </tr>
-                                      );
-                                  })}
-                                </tbody>
-                              </table>
-                           </div>
+                           {state.data.chartData.some(d => d.passengers > 0) && (
+                             <div className="mt-6 overflow-x-auto">
+                                <table className="min-w-full text-sm text-left text-slate-500">
+                                  <thead className="text-xs text-slate-700 uppercase bg-slate-50">
+                                    <tr>
+                                      <th className="px-4 py-2">月份</th>
+                                      <th className="px-4 py-2 text-right">{selectedYear} (人次)</th>
+                                      <th className="px-4 py-2 text-right">{selectedYear - 1} (人次)</th>
+                                      <th className="px-4 py-2 text-right">增長率</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {state.data.chartData.map((row, idx) => {
+                                        if (row.passengers === 0 && (!row.comparison || row.comparison === 0)) return null; // Skip empty rows
+
+                                        const growth = row.comparison && row.comparison > 0 ? ((row.passengers - row.comparison) / row.comparison * 100).toFixed(1) : '-';
+                                        return (
+                                          <tr key={idx} className="border-b hover:bg-slate-50">
+                                            <td className="px-4 py-2 font-medium text-slate-900">{row.period}</td>
+                                            <td className="px-4 py-2 text-right font-mono text-slate-700">{new Intl.NumberFormat('zh-TW').format(row.passengers)}</td>
+                                            <td className="px-4 py-2 text-right font-mono text-slate-500">{row.comparison ? new Intl.NumberFormat('zh-TW').format(row.comparison) : '-'}</td>
+                                            <td className="px-4 py-2 text-right">
+                                              <span className={`${parseFloat(growth) > 0 ? 'text-green-600' : parseFloat(growth) < 0 ? 'text-red-600' : 'text-slate-400'}`}>
+                                                {growth !== '-' && parseFloat(growth) > 0 ? '+' : ''}{growth}%
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        );
+                                    })}
+                                  </tbody>
+                                </table>
+                             </div>
+                           )}
                         </div>
                         
                         <div className="lg:col-span-1 border-t lg:border-t-0 lg:border-l border-slate-100 lg:pl-8 pt-6 lg:pt-0">
