@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plane, PlusCircle } from 'lucide-react';
+import { Plane } from 'lucide-react';
 
 interface HeaderProps {
   onOpenAddModal?: () => void;
@@ -23,15 +23,7 @@ const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
             <a href="#" className="hover:text-blue-600 transition-colors">趨勢分析</a>
           </nav>
           
-          {onOpenAddModal && (
-            <button 
-              onClick={onOpenAddModal}
-              className="flex items-center space-x-2 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm"
-            >
-              <PlusCircle size={16} />
-              <span>新增數據</span>
-            </button>
-          )}
+          {/* Add Data button removed as per request, logic moved to individual cards */}
         </div>
       </div>
     </header>

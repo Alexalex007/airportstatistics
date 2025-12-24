@@ -66,8 +66,9 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title }) => {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
-            // Reduce margins on mobile to utilize full width
-            margin={{ top: 10, right: 5, left: -15, bottom: 0 }}
+            // Fix: Changed left margin from -15 to 0 to prevent Y-axis labels from being cut off
+            // Right margin ensures the last bar isn't too close to the edge
+            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
             barGap={2}
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -79,14 +80,14 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title }) => {
               tick={{ fill: '#64748b', fontSize: 11 }} // Smaller font for axis
               dy={10}
               interval="preserveStartEnd" // Ensure first and last are visible
-              minTickGap={10} // Prevent overlap
+              minTickGap={5} // Prevent overlap
             />
             <YAxis 
               axisLine={false}
               tickLine={false}
               tick={{ fill: '#64748b', fontSize: 11 }}
               tickFormatter={formatNumber}
-              width={40} // Fixed width to prevent jumping
+              width={45} // Increased width slightly to ensure "X.XM" fits without cutoff
             />
             <Tooltip
               cursor={{ fill: '#f1f5f9' }}
