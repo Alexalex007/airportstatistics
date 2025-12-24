@@ -254,6 +254,27 @@ const App: React.FC = () => {
               const totalPassengers = calculateTotal(state?.data || null);
               const growthRate = calculateGrowth(state?.data || null);
 
+              // Calculate footer statistics
+              let footerCurrentSum = 0;
+              let footerPrevSum = 0;
+              let hasFooterData = false;
+
+              if (state?.data?.chartData) {
+                state.data.chartData.forEach(item => {
+                  if (item.passengers > 0) {
+                     footerCurrentSum += item.passengers;
+                     if (item.comparison) footerPrevSum += item.comparison;
+                     hasFooterData = true;
+                  }
+                });
+              }
+
+              const footerDiff = footerCurrentSum - footerPrevSum;
+              const footerDiffRounded = Math.round(footerDiff / 1000) * 1000;
+              const footerGrowthStr = (hasFooterData && footerPrevSum > 0) 
+                ? ((footerCurrentSum - footerPrevSum) / footerPrevSum * 100).toFixed(1) 
+                : '-';
+
               return (
                 <div key={airport.code} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden animate-fade-in transition-all relative group hover:shadow-md dark:hover:shadow-slate-800/50">
                   
@@ -369,7 +390,7 @@ const App: React.FC = () => {
                                         <th className="px-4 sm:px-6 py-3 whitespace-nowrap">月份</th>
                                         <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">{selectedYear} (人次)</th>
                                         <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap text-slate-400 dark:text-slate-500">{selectedYear - 1} (人次)</th>
-                                        <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">增長額</th>
+                                        <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">增減額</th>
                                         <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">增長率</th>
                                       </tr>
                                     </thead>
@@ -423,6 +444,35 @@ const App: React.FC = () => {
                                           );
                                       })}
                                     </tbody>
+                                    <tfoot className="bg-slate-100 dark:bg-slate-800 font-bold border-t-2 border-slate-200 dark:border-slate-700">
+                                      <tr>
+                                        <td className="px-4 sm:px-6 py-3 text-slate-800 dark:text-slate-100">年度總計</td>
+                                        <td className="px-4 sm:px-6 py-3 text-right font-mono text-slate-800 dark:text-slate-100">
+                                          {new Intl.NumberFormat('zh-TW').format(footerCurrentSum)}
+                                        </td>
+                                        <td className="px-4 sm:px-6 py-3 text-right font-mono text-slate-400 dark:text-slate-500">
+                                          {footerPrevSum > 0 ? new Intl.NumberFormat('zh-TW').format(footerPrevSum) : '-'}
+                                        </td>
+                                        <td className="px-4 sm:px-6 py-3 text-right font-mono">
+                                          {hasFooterData && footerPrevSum > 0 ? (
+                                            <span className={footerDiffRounded >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>
+                                              {footerDiffRounded > 0 ? '+' : ''}{new Intl.NumberFormat('zh-TW').format(footerDiffRounded)}
+                                            </span>
+                                          ) : <span className="text-slate-300 dark:text-slate-600">-</span>}
+                                        </td>
+                                        <td className="px-4 sm:px-6 py-3 text-right">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                                                  footerGrowthStr === '-' ? 'text-slate-300 dark:text-slate-600' :
+                                                  parseFloat(footerGrowthStr) > 0 
+                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                }`}>
+                                              {footerGrowthStr !== '-' && parseFloat(footerGrowthStr) > 0 ? <TrendingUp size={10} className="mr-1"/> : null}
+                                              {footerGrowthStr !== '-' ? (parseFloat(footerGrowthStr) > 0 ? '+' : '') + footerGrowthStr + '%' : '-'}
+                                            </span>
+                                        </td>
+                                      </tr>
+                                    </tfoot>
                                   </table>
                                 </div>
                              </div>
