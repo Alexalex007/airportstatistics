@@ -269,8 +269,8 @@ const App: React.FC = () => {
                 });
               }
 
+              // Exact calculation without rounding
               const footerDiff = footerCurrentSum - footerPrevSum;
-              const footerDiffRounded = Math.round(footerDiff / 1000) * 1000;
               const footerGrowthStr = (hasFooterData && footerPrevSum > 0) 
                 ? ((footerCurrentSum - footerPrevSum) / footerPrevSum * 100).toFixed(1) 
                 : '-';
@@ -405,12 +405,9 @@ const App: React.FC = () => {
                                               ? ((row.passengers - row.comparison!) / row.comparison! * 100).toFixed(1) 
                                               : '-';
                                           
-                                          // Calculate growth amount and round to nearest thousand
-                                          const growthAmountRaw = (hasCurrent && hasPrev) 
+                                          // Calculate growth amount (No rounding as requested)
+                                          const growthAmount = (hasCurrent && hasPrev) 
                                               ? (row.passengers - row.comparison!) 
-                                              : null;
-                                          const growthAmountRounded = growthAmountRaw !== null 
-                                              ? Math.round(growthAmountRaw / 1000) * 1000 
                                               : null;
                                               
                                           return (
@@ -423,9 +420,9 @@ const App: React.FC = () => {
                                                   {row.comparison ? new Intl.NumberFormat('zh-TW').format(row.comparison) : <span className="text-slate-200 dark:text-slate-700">-</span>}
                                               </td>
                                               <td className="px-4 sm:px-6 py-2.5 text-right font-mono">
-                                                {growthAmountRounded !== null ? (
-                                                  <span className={growthAmountRounded >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>
-                                                    {growthAmountRounded > 0 ? '+' : ''}{new Intl.NumberFormat('zh-TW').format(growthAmountRounded)}
+                                                {growthAmount !== null ? (
+                                                  <span className={growthAmount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>
+                                                    {growthAmount > 0 ? '+' : ''}{new Intl.NumberFormat('zh-TW').format(growthAmount)}
                                                   </span>
                                                 ) : <span className="text-slate-200 dark:text-slate-700">-</span>}
                                               </td>
@@ -455,8 +452,8 @@ const App: React.FC = () => {
                                         </td>
                                         <td className="px-4 sm:px-6 py-3 text-right font-mono">
                                           {hasFooterData && footerPrevSum > 0 ? (
-                                            <span className={footerDiffRounded >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>
-                                              {footerDiffRounded > 0 ? '+' : ''}{new Intl.NumberFormat('zh-TW').format(footerDiffRounded)}
+                                            <span className={footerDiff >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>
+                                              {footerDiff > 0 ? '+' : ''}{new Intl.NumberFormat('zh-TW').format(footerDiff)}
                                             </span>
                                           ) : <span className="text-slate-300 dark:text-slate-600">-</span>}
                                         </td>
