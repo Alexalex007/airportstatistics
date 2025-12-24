@@ -5,7 +5,7 @@ import StatsChart from './components/StatsChart';
 import AddDataModal from './components/AddDataModal';
 import { fetchAirportStats } from './services/geminiService';
 import { SearchState, AirportData, AirportDefinition } from './types';
-import { AlertCircle, Users, Trash2, Edit, TrendingUp } from 'lucide-react';
+import { AlertCircle, Users, Trash2, Edit, TrendingUp, TrendingDown } from 'lucide-react';
 
 const DEFAULT_AIRPORTS: AirportDefinition[] = [
   { code: 'HKG', name: '香港國際機場' },
@@ -24,6 +24,35 @@ const STORAGE_KEYS = {
 const calculateTotal = (data: AirportData | null): number => {
   if (!data || !data.chartData) return 0;
   return data.chartData.reduce((sum, item) => sum + item.passengers, 0);
+};
+
+// Helper to calculate Year-to-Date growth rate
+// Logic: Sum current passengers for months that have data, 
+// and sum comparison passengers ONLY for those same months.
+const calculateGrowth = (data: AirportData | null): string | null => {
+  if (!data || !data.chartData) return null;
+
+  let currentSum = 0;
+  let prevSum = 0;
+  let hasData = false;
+
+  data.chartData.forEach(item => {
+    // Only consider months where we have actual current data (passengers > 0)
+    if (item.passengers > 0) {
+      currentSum += item.passengers;
+      // Add the comparison data for this specific month if it exists
+      if (item.comparison) {
+        prevSum += item.comparison;
+      }
+      hasData = true;
+    }
+  });
+
+  // If no data or no previous year data to compare against, return null
+  if (!hasData || prevSum === 0) return null;
+
+  const growth = ((currentSum - prevSum) / prevSum) * 100;
+  return growth.toFixed(1);
 };
 
 const App: React.FC = () => {
@@ -97,11 +126,6 @@ const App: React.FC = () => {
         }
 
         // 2. If no local data, fetch from service (Only for Default Airports usually)
-        // Custom airports won't have service data unless we implemented it, 
-        // but for now we assume custom airports rely on LS or manual entry.
-        // However, if we added a custom airport but haven't saved data for this specific year yet,
-        // we might want to return empty structure or try fetch if logic allowed.
-        // For simplicity: Default -> Service; Custom -> Empty/Null if not in LS.
         
         const isDefault = DEFAULT_AIRPORTS.some(d => d.code === ap.code);
         
@@ -177,10 +201,6 @@ const App: React.FC = () => {
       delete next[code];
       return next;
     });
-
-    // Optional: Clean up all data for this airport from LS?
-    // For now, let's just keep the data in LS in case they re-add it, 
-    // or we could loop and delete. Simpler to just leave it.
   };
 
   const openAddModal = () => {
@@ -229,6 +249,7 @@ const App: React.FC = () => {
               if (!state && !airport.isCustom) return null;
 
               const totalPassengers = calculateTotal(state?.data || null);
+              const growthRate = calculateGrowth(state?.data || null);
 
               return (
                 <div key={airport.code} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in transition-all relative group hover:shadow-md">
@@ -266,9 +287,18 @@ const App: React.FC = () => {
                                 <span className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-0.5">
                                   {selectedYear} 總客運量
                                 </span>
-                                <div className="flex items-center text-emerald-700 font-bold text-lg sm:text-xl">
-                                   <Users size={18} className="mr-1.5 opacity-80" />
-                                   {new Intl.NumberFormat('zh-TW').format(totalPassengers)}
+                                <div className="flex flex-wrap items-baseline gap-2">
+                                   <div className="flex items-center text-slate-800 font-bold text-lg sm:text-xl">
+                                      {new Intl.NumberFormat('zh-TW').format(totalPassengers)}
+                                   </div>
+                                   
+                                   {/* Growth Badge */}
+                                   {growthRate && (
+                                     <div className={`flex items-center text-xs font-bold px-1.5 py-0.5 rounded ${parseFloat(growthRate) >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                       {parseFloat(growthRate) >= 0 ? <TrendingUp size={12} className="mr-1"/> : <TrendingDown size={12} className="mr-1"/>}
+                                       {parseFloat(growthRate) > 0 ? '+' : ''}{growthRate}%
+                                     </div>
+                                   )}
                                 </div>
                               </div>
                             ) : (
