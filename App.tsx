@@ -12,7 +12,8 @@ const DEFAULT_AIRPORTS: AirportDefinition[] = [
   { code: 'TPE', name: '台灣桃園機場' },
   { code: 'SIN', name: '新加坡樟宜機場' },
   { code: 'BKK', name: '曼谷素萬那普機場' },
-  { code: 'ICN', name: '首爾仁川機場' }
+  { code: 'ICN', name: '首爾仁川機場' },
+  { code: 'MNL', name: '馬尼拉國際機場' }
 ];
 
 const STORAGE_KEYS = {
