@@ -99,6 +99,18 @@ const App: React.FC = () => {
   // Comparison Modal State
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
 
+  // Lock body scroll when comparison modal is open
+  useEffect(() => {
+    if (isComparisonOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isComparisonOpen]);
+
   const allAirports = [...DEFAULT_AIRPORTS, ...customAirports];
 
   const [results, setResults] = useState<Record<string, SearchState>>(() => {
@@ -246,22 +258,19 @@ const App: React.FC = () => {
               onClick={() => setIsComparisonOpen(true)}
               className="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-1 shadow-lg transition-all hover:shadow-xl hover:scale-[1.005] active:scale-[0.99]"
             >
-              <div className="relative flex items-center justify-between rounded-xl bg-white dark:bg-slate-900 px-6 py-4 sm:py-5 transition-all group-hover:bg-opacity-90 dark:group-hover:bg-opacity-90">
+              <div className="relative flex items-center justify-between rounded-xl bg-white dark:bg-slate-900 px-6 py-4 transition-all group-hover:bg-opacity-90 dark:group-hover:bg-opacity-90">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                    <BarChart2 size={24} />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    <BarChart2 size={20} />
                   </div>
                   <div className="text-left">
                     <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      開啟多機場趨勢比對
+                      進入多機場趨勢比對實驗室
                     </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      選擇多個機場進行交叉分析，生成高清晰度折線圖表
-                    </p>
                   </div>
                 </div>
                 <div className="text-slate-300 dark:text-slate-600 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all">
-                  <ArrowRight size={24} />
+                  <ArrowRight size={20} />
                 </div>
               </div>
             </button>
