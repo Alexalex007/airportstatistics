@@ -22,7 +22,6 @@ const calculateTotal = (data: AirportData | null): number => {
 };
 
 const App: React.FC = () => {
-  // Initialize state with all airports in loading state so cards appear immediately
   const [results, setResults] = useState<Record<string, SearchState>>(() => {
     const initial: Record<string, SearchState> = {};
     AIRPORTS.forEach(ap => {
@@ -31,26 +30,10 @@ const App: React.FC = () => {
     return initial;
   });
   
-  const [globalLoading, setGlobalLoading] = useState(true); // Start as true
   const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
 
-  const fetchAll = useCallback(async () => {
-    setGlobalLoading(true);
-    
-    // Refresh loading states for all, keeping existing data if available
-    setResults(prev => {
-      const next: Record<string, SearchState> = {};
-      AIRPORTS.forEach(ap => {
-        next[ap.code] = { 
-          isLoading: true, 
-          error: null, 
-          data: prev[ap.code]?.data || null 
-        };
-      });
-      return next;
-    });
-
-    // Create a promise for each airport to fetch in parallel
+  const loadManualData = useCallback(async () => {
+    // Load all data from our static "manual" database
     const promises = AIRPORTS.map(async (ap) => {
       try {
         const query = `${ap.code} ${ap.name}`;
@@ -69,14 +52,13 @@ const App: React.FC = () => {
     });
 
     await Promise.all(promises);
-    setGlobalLoading(false);
     setLastUpdated(new Date());
   }, []);
 
-  // Auto-fetch on mount
+  // Load data immediately on mount
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    loadManualData();
+  }, [loadManualData]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -84,8 +66,7 @@ const App: React.FC = () => {
       
       <main className="flex-grow">
         <HeroSearch 
-          onSearch={fetchAll} 
-          isLoading={globalLoading} 
+          onSearch={loadManualData} 
           lastUpdated={lastUpdated}
         />
 
@@ -107,17 +88,16 @@ const App: React.FC = () => {
                        <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded mr-3">{airport.code}</span>
                        <h2 className="text-xl font-bold text-slate-800">{airport.name}</h2>
                     </div>
-                    {state.isLoading && (
-                      <span className="text-sm text-blue-600 flex items-center animate-pulse">
-                        <span className="w-2 h-2 bg-blue-600 rounded-full mr-2"></span>
-                        更新數據中...
-                      </span>
-                    )}
-                    {!state.isLoading && state.data && (
+                    {/* Only show "Updating" if actually loading, which is fast now */}
+                    {state.isLoading ? (
+                      <span className="text-sm text-slate-400">載入中...</span>
+                    ) : (
+                      state.data && (
                        <div className="flex items-center text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
                           <Users size={16} className="mr-2" />
                           <span className="text-sm font-semibold">統計總數: {new Intl.NumberFormat('zh-TW').format(totalPassengers)} 人次</span>
                        </div>
+                      )
                     )}
                   </div>
 
@@ -180,7 +160,7 @@ const App: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      // Skeleton Loader when data is null but loading
+                      // Skeleton Loader
                       state.isLoading && (
                         <div className="animate-pulse space-y-6">
                            <div className="h-64 bg-slate-100 rounded-xl"></div>
@@ -199,7 +179,7 @@ const App: React.FC = () => {
 
       <footer className="bg-slate-900 text-slate-400 py-8 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <p>© 2024 SkyMetrics. Powered by Google Search & Gemini 2.5.</p>
+          <p>© 2024 SkyMetrics. 機場數據分析平台.</p>
         </div>
       </footer>
     </div>
