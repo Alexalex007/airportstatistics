@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Calculator } from 'lucide-react';
+import { X, Save, Calculator, ChevronDown } from 'lucide-react';
 import { AirportData, ChartDataPoint } from '../types';
 
 interface AddDataModalProps {
@@ -15,6 +15,8 @@ interface AddDataModalProps {
 }
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const YEARS_RANGE = [2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
+const DATA_PREFIX = 'skymetrics_data_';
 
 const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, currentYear, initialData }) => {
   const [code, setCode] = useState('');
@@ -60,6 +62,61 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
       setComparisons(Array(12).fill(''));
     }
   }, [isOpen, initialData, currentYear]);
+
+  // Helper to load data from LocalStorage for a specific year
+  const loadSavedData = (targetCode: string, targetYear: number): string[] | null => {
+    try {
+      const key = `${DATA_PREFIX}${targetCode}_${targetYear}`;
+      const savedStr = localStorage.getItem(key);
+      if (!savedStr) return null;
+      
+      const savedData = JSON.parse(savedStr) as AirportData;
+      const loadedPassengers = Array(12).fill('');
+      
+      if (savedData.chartData) {
+        savedData.chartData.forEach(point => {
+           const monthStr = point.period.split(' ')[1];
+           const index = MONTH_NAMES.indexOf(monthStr);
+           if (index !== -1) {
+             loadedPassengers[index] = point.passengers.toString();
+           }
+        });
+      }
+      return loadedPassengers;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newYear = parseInt(e.target.value);
+    const oldYear = year;
+    
+    // 1. Prepare "New Current" (Data for the new selected year)
+    // Check if we already have saved data for this new year
+    const savedCurrent = loadSavedData(code, newYear);
+    const nextPassengers = savedCurrent || Array(12).fill('');
+
+    // 2. Prepare "New Comparison" (Data for newYear - 1)
+    let nextComparisons = Array(12).fill('');
+
+    if (newYear === oldYear + 1) {
+      // Smart Logic: If moving forward by 1 year (e.g., 2025 -> 2026),
+      // take the existing inputs from the screen (which were 2025 values)
+      // and move them to the comparison column.
+      nextComparisons = [...passengers];
+    } else {
+      // Otherwise (e.g. jumping random years), try to load saved data for (newYear - 1)
+      const savedPrev = loadSavedData(code, newYear - 1);
+      if (savedPrev) {
+        nextComparisons = savedPrev;
+      }
+    }
+
+    setYear(newYear);
+    setPassengers(nextPassengers);
+    setComparisons(nextComparisons);
+  };
 
   if (!isOpen) return null;
 
@@ -190,13 +247,21 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">統計年份</label>
-                <input 
-                  type="number" 
-                  value={year} 
-                  onChange={(e) => setYear(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                  required
-                />
+                <div className="relative">
+                  <select 
+                    value={year} 
+                    onChange={handleYearChange}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none cursor-pointer"
+                    required
+                  >
+                    {YEARS_RANGE.map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -235,6 +300,7 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
                <div className="text-blue-600 dark:text-blue-400 mr-2 mt-0.5">ℹ️</div>
                <p className="text-xs text-blue-700 dark:text-blue-300">
                  系統將自動計算<strong>年度總和</strong>與<strong>同期成長率</strong>。若填寫「{year - 1} 客運量」，圖表將顯示對比柱狀圖。
+                 <br/><span className="opacity-80 mt-1 inline-block">提示：選擇下一年份 (如 2025 {'->'} 2026) 時，當前填寫的數據會自動移至同期比較欄位。</span>
                </p>
             </div>
 
