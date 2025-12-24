@@ -115,6 +115,16 @@ const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
 // 服務邏輯
 // ----------------------------------------------------------------------
 
+export const getAvailableYears = (code: string): number[] => {
+  const airport = AIRPORT_RAW_DATA[code];
+  if (!airport) return [];
+  // Return years that have actual data (non-empty arrays)
+  return Object.keys(airport.stats)
+    .map(Number)
+    .filter(year => airport.stats[year] && airport.stats[year].length > 0)
+    .sort((a, b) => b - a); // Descending order
+};
+
 export const fetchAirportStats = async (query: string, year: number = 2024): Promise<AirportData> => {
   // Simulate delay
   await new Promise(resolve => setTimeout(resolve, 300));

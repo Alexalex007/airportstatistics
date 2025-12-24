@@ -240,6 +240,33 @@ const App: React.FC = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           
+          {/* Comparison Lab Entry Button - Moved to Top */}
+          <div className="mb-10 animate-fade-in-up">
+            <button
+              onClick={() => setIsComparisonOpen(true)}
+              className="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-1 shadow-lg transition-all hover:shadow-xl hover:scale-[1.005] active:scale-[0.99]"
+            >
+              <div className="relative flex items-center justify-between rounded-xl bg-white dark:bg-slate-900 px-6 py-4 sm:py-5 transition-all group-hover:bg-opacity-90 dark:group-hover:bg-opacity-90">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    <BarChart2 size={24} />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      開啟多機場趨勢比對
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      選擇多個機場進行交叉分析，生成高清晰度折線圖表
+                    </p>
+                  </div>
+                </div>
+                <div className="text-slate-300 dark:text-slate-600 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all">
+                  <ArrowRight size={24} />
+                </div>
+              </div>
+            </button>
+          </div>
+          
           <div className="flex items-center mb-6 justify-between">
              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 border-l-4 border-blue-600 pl-4">
                {selectedYear} 年統計概覽
@@ -493,33 +520,6 @@ const App: React.FC = () => {
                 </div>
               );
             })}
-          </div>
-
-          {/* Comparison Lab Entry Button */}
-          <div className="mt-12 mb-4">
-            <button
-              onClick={() => setIsComparisonOpen(true)}
-              className="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-1 shadow-xl transition-all hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99]"
-            >
-              <div className="relative flex items-center justify-between rounded-xl bg-white dark:bg-slate-900 px-6 py-5 transition-all group-hover:bg-opacity-90 dark:group-hover:bg-opacity-90">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                    <BarChart2 size={24} />
-                  </div>
-                  <div className="text-left">
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      開啟多機場趨勢比對
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      選擇多個機場進行交叉分析，生成高清晰度折線圖表
-                    </p>
-                  </div>
-                </div>
-                <div className="text-slate-300 dark:text-slate-600 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all">
-                  <ArrowRight size={24} />
-                </div>
-              </div>
-            </button>
           </div>
 
         </div>
