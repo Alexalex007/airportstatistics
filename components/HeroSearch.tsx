@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, Calendar, ChevronDown, BarChart2 } from 'lucide-react';
+import { Globe, Calendar, ChevronDown, BarChart2 } from 'lucide-react';
 
 interface HeroSearchProps {
   onSearch: () => void;
@@ -50,9 +50,21 @@ const HeroSearch: React.FC<HeroSearchProps> = ({ onSearch, lastUpdated, selected
               </span>
             </h1>
             
-            <div className="flex items-center mt-4 text-slate-600 dark:text-slate-400">
-               <Database size={18} className="text-blue-600 dark:text-cyan-500 mr-3 shrink-0"/>
-               <span className="text-sm sm:text-base font-bold tracking-widest font-mono text-slate-700 dark:text-slate-300 truncate">
+            <div className="flex items-center mt-5 w-full max-w-lg lg:max-w-xl">
+               <Globe size={20} className="text-blue-600 dark:text-cyan-500 mr-3 shrink-0"/>
+               
+               {/* Mobile: Flex layout with justify-between to ensure full line usage without cutoff */}
+               <div className="flex sm:hidden w-full justify-between items-center text-[13px] xs:text-sm font-bold font-mono text-slate-700 dark:text-slate-300">
+                  <span>HKG</span>
+                  <span>TPE</span>
+                  <span>SIN</span>
+                  <span>BKK</span>
+                  <span>ICN</span>
+                  <span>MNL</span>
+               </div>
+
+               {/* Desktop: Original elegant wide tracking with dots */}
+               <span className="hidden sm:block text-sm sm:text-base font-bold tracking-widest font-mono text-slate-700 dark:text-slate-300 truncate">
                  HKG · TPE · SIN · BKK · ICN · MNL
                </span>
             </div>
