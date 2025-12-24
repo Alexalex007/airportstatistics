@@ -196,7 +196,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
            </div>
            <div>
              <h2 className="text-lg sm:text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
-               多機場數據比對實驗室
+               多機場對比實驗室
              </h2>
              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                點選機場以加入圖表，切換年份可進行跨時空比對

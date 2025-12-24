@@ -265,7 +265,7 @@ const App: React.FC = () => {
                   </div>
                   <div className="text-left">
                     <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      進入多機場趨勢比對實驗室
+                      進入多機場對比實驗室
                     </h3>
                   </div>
                 </div>
