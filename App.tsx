@@ -2,10 +2,10 @@ import React, { useState, useCallback, useEffect } from 'react';
 import Header from './components/Header';
 import HeroSearch from './components/HeroSearch';
 import StatsChart from './components/StatsChart';
-import AddDataModal from './components/AddDataModal'; // Import new modal
+import AddDataModal from './components/AddDataModal';
 import { fetchAirportStats } from './services/geminiService';
 import { SearchState, AirportData, AirportDefinition } from './types';
-import { AlertCircle, Users, Trash2, Edit } from 'lucide-react';
+import { AlertCircle, Users, Trash2, Edit, TrendingUp } from 'lucide-react';
 
 const DEFAULT_AIRPORTS: AirportDefinition[] = [
   { code: 'HKG', name: '香港國際機場' },
@@ -15,6 +15,11 @@ const DEFAULT_AIRPORTS: AirportDefinition[] = [
   { code: 'ICN', name: '首爾仁川機場' }
 ];
 
+const STORAGE_KEYS = {
+  CUSTOM_AIRPORTS: 'skymetrics_custom_airports',
+  DATA_PREFIX: 'skymetrics_data_'
+};
+
 // Helper to calculate total passengers from chart data
 const calculateTotal = (data: AirportData | null): number => {
   if (!data || !data.chartData) return 0;
@@ -23,7 +28,16 @@ const calculateTotal = (data: AirportData | null): number => {
 
 const App: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<number>(2025);
-  const [customAirports, setCustomAirports] = useState<AirportDefinition[]>([]);
+  
+  // Initialize custom airports from LocalStorage
+  const [customAirports, setCustomAirports] = useState<AirportDefinition[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CUSTOM_AIRPORTS);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,6 +48,7 @@ const App: React.FC = () => {
 
   const [results, setResults] = useState<Record<string, SearchState>>(() => {
     const initial: Record<string, SearchState> = {};
+    // Initialize default entries
     DEFAULT_AIRPORTS.forEach(ap => {
       initial[ap.code] = { isLoading: true, error: null, data: null };
     });
@@ -42,29 +57,69 @@ const App: React.FC = () => {
   
   const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
 
+  // Save custom airports to LS whenever they change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_AIRPORTS, JSON.stringify(customAirports));
+  }, [customAirports]);
+
   const loadManualData = useCallback(async (year: number) => {
-    // Only fetch for DEFAULT airports, keep custom ones as they are (or reset them if needed, but here we preserve structure)
-    // We update loading state only for default airports
+    // We iterate over ALL airports (default + custom)
+    const currentAirports = [...DEFAULT_AIRPORTS, ...customAirports];
+
+    // Set loading state
     setResults(prev => {
         const next = { ...prev };
-        DEFAULT_AIRPORTS.forEach(ap => {
-            // Only fetch if we don't have custom override (conceptually, though here we just overwrite anyway initially)
-            // But let's re-fetch to be safe on year change.
-            next[ap.code] = { ...next[ap.code], isLoading: true };
+        currentAirports.forEach(ap => {
+             // Preserve existing data while loading if possible, but mark loading
+             const existing = next[ap.code];
+             next[ap.code] = { 
+               isLoading: true, 
+               error: null, 
+               data: existing?.data || null 
+             };
         });
         return next;
     });
 
-    const promises = DEFAULT_AIRPORTS.map(async (ap) => {
+    const promises = currentAirports.map(async (ap) => {
       try {
-        const query = `${ap.code} ${ap.name}`;
-        // Pass the year to the service
-        const data = await fetchAirportStats(query, year);
+        // 1. Check LocalStorage first for this specific airport + year
+        const storageKey = `${STORAGE_KEYS.DATA_PREFIX}${ap.code}_${year}`;
+        const savedDataString = localStorage.getItem(storageKey);
+
+        if (savedDataString) {
+          const savedData = JSON.parse(savedDataString) as AirportData;
+          setResults(prev => ({
+            ...prev,
+            [ap.code]: { isLoading: false, error: null, data: savedData }
+          }));
+          return;
+        }
+
+        // 2. If no local data, fetch from service (Only for Default Airports usually)
+        // Custom airports won't have service data unless we implemented it, 
+        // but for now we assume custom airports rely on LS or manual entry.
+        // However, if we added a custom airport but haven't saved data for this specific year yet,
+        // we might want to return empty structure or try fetch if logic allowed.
+        // For simplicity: Default -> Service; Custom -> Empty/Null if not in LS.
         
-        setResults(prev => ({
-          ...prev,
-          [ap.code]: { isLoading: false, error: null, data }
-        }));
+        const isDefault = DEFAULT_AIRPORTS.some(d => d.code === ap.code);
+        
+        if (isDefault) {
+           const query = `${ap.code} ${ap.name}`;
+           const data = await fetchAirportStats(query, year);
+           setResults(prev => ({
+             ...prev,
+             [ap.code]: { isLoading: false, error: null, data }
+           }));
+        } else {
+           // It's a custom airport but no data for this year in LS
+           setResults(prev => ({
+             ...prev,
+             [ap.code]: { isLoading: false, error: null, data: null } // No data found
+           }));
+        }
+
       } catch (err: any) {
         setResults(prev => ({
           ...prev,
@@ -75,7 +130,7 @@ const App: React.FC = () => {
 
     await Promise.all(promises);
     setLastUpdated(new Date());
-  }, []);
+  }, [customAirports]); // Re-create if custom airports list changes
 
   // Handle year change
   const handleYearChange = (year: number) => {
@@ -97,26 +152,35 @@ const App: React.FC = () => {
       setCustomAirports(prev => [...prev, { code, name, isCustom: true }]);
     }
 
-    // 2. Directly inject data into results state
+    // 2. Save data to LocalStorage
+    const storageKey = `${STORAGE_KEYS.DATA_PREFIX}${code}_${year}`;
+    localStorage.setItem(storageKey, JSON.stringify(data));
+
+    // 3. Update state
     setResults(prev => ({
       ...prev,
       [code]: { isLoading: false, error: null, data: data }
     }));
 
-    // If the year of input data matches current view, perfect. 
-    // If not, we might want to alert user or switch view, but for now we just save it.
     if (year !== selectedYear) {
       setSelectedYear(year);
     }
   };
 
   const removeCustomAirport = (code: string) => {
+    // Remove from list
     setCustomAirports(prev => prev.filter(ap => ap.code !== code));
+    
+    // Remove data from state
     setResults(prev => {
       const next = { ...prev };
       delete next[code];
       return next;
     });
+
+    // Optional: Clean up all data for this airport from LS?
+    // For now, let's just keep the data in LS in case they re-add it, 
+    // or we could loop and delete. Simpler to just leave it.
   };
 
   const openAddModal = () => {
@@ -159,70 +223,90 @@ const App: React.FC = () => {
              )}
           </div>
 
-          <div className="space-y-12">
+          <div className="space-y-8">
             {allAirports.map((airport) => {
               const state = results[airport.code];
-              // If it's a custom airport and we don't have data for this specific year (because user added it for another year), 
-              // we might show empty or null.
               if (!state && !airport.isCustom) return null;
-              if (airport.isCustom && !state) return null; // Should not happen given logic
 
               const totalPassengers = calculateTotal(state?.data || null);
 
               return (
-                <div key={airport.code} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in transition-all relative group">
+                <div key={airport.code} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in transition-all relative group hover:shadow-md">
                   
-                  {/* Airport Header */}
-                  <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between">
-                    <div className="flex items-center mb-2 sm:mb-0">
-                       <span className={`${airport.isCustom ? 'bg-purple-600' : 'bg-blue-600'} text-white text-xs font-bold px-2 py-1 rounded mr-3`}>
-                         {airport.code}
-                       </span>
-                       <h2 className="text-xl font-bold text-slate-800">
-                         {airport.name} 
-                         {airport.isCustom && <span className="ml-2 text-xs font-normal text-purple-600 border border-purple-200 bg-purple-50 px-2 py-0.5 rounded">自定義</span>}
-                       </h2>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2 sm:space-x-4">
-                        {state?.isLoading ? (
-                          <span className="text-sm text-slate-400">更新中...</span>
-                        ) : (
-                          state?.data && (
-                           <div className="hidden sm:flex items-center text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 mr-2">
-                              <Users size={16} className="mr-2" />
-                              <span className="text-sm font-semibold">
-                                {selectedYear} 總數: {new Intl.NumberFormat('zh-TW').format(totalPassengers)}
+                  {/* --- Redesigned Airport Header --- */}
+                  <div className="bg-white border-b border-slate-100 p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      
+                      {/* Left: Airport Identity */}
+                      <div className="flex items-center">
+                         <div className={`flex items-center justify-center w-12 h-12 rounded-xl text-white font-bold text-lg shadow-sm mr-4 flex-shrink-0 ${airport.isCustom ? 'bg-gradient-to-br from-purple-500 to-indigo-600' : 'bg-gradient-to-br from-blue-500 to-cyan-600'}`}>
+                           {airport.code}
+                         </div>
+                         <div>
+                            <h2 className="text-lg sm:text-xl font-bold text-slate-800 leading-tight">
+                              {airport.name}
+                            </h2>
+                            {airport.isCustom && (
+                              <span className="inline-block mt-1 text-[10px] font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                                自定義數據
                               </span>
-                           </div>
-                          )
-                        )}
-                        
-                        <button 
-                            onClick={() => openEditModal(airport)}
-                            className="flex items-center space-x-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1.5 rounded-md text-sm font-medium transition-colors shadow-sm"
-                            title="編輯/更新數據"
-                        >
-                            <Edit size={14} />
-                            <span>更新數據</span>
-                        </button>
+                            )}
+                         </div>
+                      </div>
+                      
+                      {/* Right: Stats & Actions */}
+                      <div className="flex items-center justify-between w-full sm:w-auto sm:gap-6 mt-1 sm:mt-0 pl-[4rem] sm:pl-0">
+                          
+                          {/* Total Count - Always Visible */}
+                          {state?.isLoading ? (
+                            <span className="text-sm text-slate-400">載入中...</span>
+                          ) : (
+                            state?.data ? (
+                              <div className="flex flex-col sm:items-end">
+                                <span className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-0.5">
+                                  {selectedYear} 總客運量
+                                </span>
+                                <div className="flex items-center text-emerald-700 font-bold text-lg sm:text-xl">
+                                   <Users size={18} className="mr-1.5 opacity-80" />
+                                   {new Intl.NumberFormat('zh-TW').format(totalPassengers)}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-slate-400 italic">暫無 {selectedYear} 數據</span>
+                            )
+                          )}
 
-                        {airport.isCustom && (
-                          <button 
-                            onClick={() => removeCustomAirport(airport.code)}
-                            className="text-slate-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-md"
-                            title="移除此數據"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        )}
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2">
+                              <button 
+                                  onClick={() => openEditModal(airport)}
+                                  className="flex items-center justify-center p-2 sm:px-3 sm:py-1.5 rounded-lg bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-600 border border-slate-200 hover:border-blue-200 transition-all active:scale-95"
+                                  title="編輯/更新數據"
+                              >
+                                  <Edit size={16} className="sm:mr-1.5" />
+                                  <span className="hidden sm:inline text-sm font-medium">更新</span>
+                              </button>
+
+                              {airport.isCustom && (
+                                <button 
+                                  onClick={() => removeCustomAirport(airport.code)}
+                                  className="flex items-center justify-center p-2 rounded-lg bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 border border-slate-200 hover:border-red-200 transition-all active:scale-95"
+                                  title="移除此機場"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                          </div>
+                      </div>
+
                     </div>
                   </div>
+                  {/* --- End Header --- */}
 
-                  {/* Content */}
-                  <div className="p-6">
+                  {/* Content Body */}
+                  <div className="p-4 sm:p-6 bg-slate-50/30">
                     {state?.error && (
-                      <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md">
+                      <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md mb-4">
                         <div className="flex">
                           <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
                           <p className="text-sm text-red-700">{state.error}</p>
@@ -239,50 +323,52 @@ const App: React.FC = () => {
                            
                            {/* Mini Table for Exact Numbers */}
                            {state.data.chartData.some(d => d.passengers > 0 || (d.comparison && d.comparison > 0)) && (
-                             <div className="overflow-x-auto border rounded-xl border-slate-100">
-                                <table className="min-w-full text-sm text-left text-slate-500">
-                                  <thead className="text-xs text-slate-700 uppercase bg-slate-50">
-                                    <tr>
-                                      <th className="px-6 py-3">月份</th>
-                                      <th className="px-6 py-3 text-right">{selectedYear} (人次)</th>
-                                      <th className="px-6 py-3 text-right">{selectedYear - 1} (人次)</th>
-                                      <th className="px-6 py-3 text-right">增長率</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {state.data.chartData.map((row, idx) => {
-                                        // Show row if either passenger data OR comparison data exists (is greater than 0)
-                                        // We treat 0 as "missing" for rendering mostly, but if both are truly 0/undefined, skip.
-                                        if ((!row.passengers || row.passengers === 0) && (!row.comparison || row.comparison === 0)) return null;
+                             <div className="overflow-hidden border rounded-xl border-slate-200 bg-white shadow-sm">
+                                <div className="overflow-x-auto">
+                                  <table className="min-w-full text-sm text-left text-slate-500">
+                                    <thead className="text-xs text-slate-700 uppercase bg-slate-100/80 border-b border-slate-200">
+                                      <tr>
+                                        <th className="px-4 sm:px-6 py-3 whitespace-nowrap">月份</th>
+                                        <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">{selectedYear} (人次)</th>
+                                        <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap text-slate-400">{selectedYear - 1} (人次)</th>
+                                        <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">增長率</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                      {state.data.chartData.map((row, idx) => {
+                                          if ((!row.passengers || row.passengers === 0) && (!row.comparison || row.comparison === 0)) return null;
 
-                                        // Only calculate growth if we have current year data. 
-                                        // If passengers is 0 (missing), growth is '-'
-                                        const hasCurrent = row.passengers > 0;
-                                        const hasPrev = row.comparison && row.comparison > 0;
-                                        
-                                        const growth = (hasCurrent && hasPrev) 
-                                            ? ((row.passengers - row.comparison!) / row.comparison! * 100).toFixed(1) 
-                                            : '-';
-                                            
-                                        return (
-                                          <tr key={idx} className="border-b hover:bg-slate-50 last:border-b-0 transition-colors">
-                                            <td className="px-6 py-3 font-medium text-slate-900">{row.period}</td>
-                                            <td className="px-6 py-3 text-right font-mono text-slate-700">
-                                                {row.passengers > 0 ? new Intl.NumberFormat('zh-TW').format(row.passengers) : '-'}
-                                            </td>
-                                            <td className="px-6 py-3 text-right font-mono text-slate-500">
-                                                {row.comparison ? new Intl.NumberFormat('zh-TW').format(row.comparison) : '-'}
-                                            </td>
-                                            <td className="px-6 py-3 text-right">
-                                              <span className={`font-medium ${parseFloat(growth) > 0 ? 'text-green-600' : parseFloat(growth) < 0 ? 'text-red-600' : 'text-slate-400'}`}>
-                                                {growth !== '-' && parseFloat(growth) > 0 ? '+' : ''}{growth !== '-' ? growth + '%' : '-'}
-                                              </span>
-                                            </td>
-                                          </tr>
-                                        );
-                                    })}
-                                  </tbody>
-                                </table>
+                                          const hasCurrent = row.passengers > 0;
+                                          const hasPrev = row.comparison && row.comparison > 0;
+                                          
+                                          const growth = (hasCurrent && hasPrev) 
+                                              ? ((row.passengers - row.comparison!) / row.comparison! * 100).toFixed(1) 
+                                              : '-';
+                                              
+                                          return (
+                                            <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
+                                              <td className="px-4 sm:px-6 py-2.5 font-medium text-slate-900">{row.period}</td>
+                                              <td className="px-4 sm:px-6 py-2.5 text-right font-mono text-slate-700 font-medium">
+                                                  {row.passengers > 0 ? new Intl.NumberFormat('zh-TW').format(row.passengers) : <span className="text-slate-300">-</span>}
+                                              </td>
+                                              <td className="px-4 sm:px-6 py-2.5 text-right font-mono text-slate-400">
+                                                  {row.comparison ? new Intl.NumberFormat('zh-TW').format(row.comparison) : <span className="text-slate-200">-</span>}
+                                              </td>
+                                              <td className="px-4 sm:px-6 py-2.5 text-right">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                                                  growth === '-' ? 'text-slate-300' :
+                                                  parseFloat(growth) > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                                }`}>
+                                                  {growth !== '-' && parseFloat(growth) > 0 ? <TrendingUp size={10} className="mr-1"/> : null}
+                                                  {growth !== '-' ? (parseFloat(growth) > 0 ? '+' : '') + growth + '%' : '-'}
+                                                </span>
+                                              </td>
+                                            </tr>
+                                          );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
                              </div>
                            )}
                       </div>
@@ -290,8 +376,8 @@ const App: React.FC = () => {
                       // Skeleton Loader
                       state?.isLoading && (
                         <div className="animate-pulse space-y-6">
-                           <div className="h-64 bg-slate-100 rounded-xl"></div>
-                           <div className="h-24 bg-slate-100 rounded-xl"></div>
+                           <div className="h-64 bg-slate-200 rounded-xl w-full"></div>
+                           <div className="h-24 bg-slate-200 rounded-xl w-full"></div>
                         </div>
                       )
                     )}
