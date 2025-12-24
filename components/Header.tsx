@@ -18,12 +18,7 @@ const Header: React.FC<HeaderProps> = ({ onOpenAddModal }) => {
           </span>
         </div>
         <div className="flex items-center space-x-4">
-          <nav className="hidden md:flex space-x-6 text-sm font-medium text-slate-600 mr-4">
-            <a href="#" className="hover:text-blue-600 transition-colors">首頁</a>
-            <a href="#" className="hover:text-blue-600 transition-colors">趨勢分析</a>
-          </nav>
-          
-          {/* Add Data button removed as per request, logic moved to individual cards */}
+          {/* Navigation links removed */}
         </div>
       </div>
     </header>

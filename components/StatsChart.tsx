@@ -44,21 +44,16 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title }) => {
 
   return (
     <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-2">
-        <h3 className="text-base sm:text-lg font-bold text-slate-800 flex items-center">
-          <span className="w-1.5 h-5 sm:h-6 bg-blue-600 rounded-full mr-2 sm:mr-3 flex-shrink-0"></span>
-          <span className="truncate">{title}</span>
+      <div className="flex flex-col items-center justify-center mb-6 gap-2">
+        <h3 className="text-base sm:text-lg font-bold text-slate-800 text-center">
+          {title}
         </h3>
-        {hasComparison && (
-          <span className="self-start sm:self-auto text-[10px] sm:text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded whitespace-nowrap">
-            含同期對比
-          </span>
-        )}
+        {/* Comparison label removed */}
       </div>
       
       {/* 
          Responsive Height: 
-         - Mobile: 280px (Shorter, makes bars look wider/less stretched vertically)
+         - Mobile: 280px 
          - Tablet: 350px
          - Desktop: 400px 
       */}
@@ -66,8 +61,6 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title }) => {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
-            // Fix: Changed left margin from -15 to 0 to prevent Y-axis labels from being cut off
-            // Right margin ensures the last bar isn't too close to the edge
             margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
             barGap={2}
           >
@@ -77,17 +70,17 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title }) => {
               tickFormatter={formatXAxis}
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#64748b', fontSize: 11 }} // Smaller font for axis
+              tick={{ fill: '#64748b', fontSize: 11 }}
               dy={10}
-              interval="preserveStartEnd" // Ensure first and last are visible
-              minTickGap={5} // Prevent overlap
+              interval="preserveStartEnd"
+              minTickGap={5}
             />
             <YAxis 
               axisLine={false}
               tickLine={false}
               tick={{ fill: '#64748b', fontSize: 11 }}
               tickFormatter={formatNumber}
-              width={45} // Increased width slightly to ensure "X.XM" fits without cutoff
+              width={45}
             />
             <Tooltip
               cursor={{ fill: '#f1f5f9' }}
@@ -114,7 +107,6 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title }) => {
               name="passengers" 
               fill="#3b82f6" 
               radius={[4, 4, 0, 0]} 
-              // Responsive maxBarSize
               maxBarSize={50}
               animationDuration={1000}
             />
@@ -134,9 +126,6 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title }) => {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-[10px] sm:text-xs text-slate-400 mt-3 text-center">
-        來源：官方統計
-      </p>
     </div>
   );
 };

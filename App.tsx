@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect } from 'react';
 import Header from './components/Header';
 import HeroSearch from './components/HeroSearch';
 import StatsChart from './components/StatsChart';
-import AnalysisCard from './components/AnalysisCard';
 import AddDataModal from './components/AddDataModal'; // Import new modal
 import { fetchAirportStats } from './services/geminiService';
 import { SearchState, AirportData, AirportDefinition } from './types';
@@ -232,23 +231,22 @@ const App: React.FC = () => {
                     )}
 
                     {state?.data ? (
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-2">
+                      <div className="space-y-6">
                            <StatsChart 
                              data={state.data.chartData} 
-                             title={`${airport.code} ${selectedYear} 客運量走勢`} 
+                             title="年度客運量統計" 
                            />
                            
                            {/* Mini Table for Exact Numbers */}
                            {state.data.chartData.some(d => d.passengers > 0 || (d.comparison && d.comparison > 0)) && (
-                             <div className="mt-6 overflow-x-auto">
+                             <div className="overflow-x-auto border rounded-xl border-slate-100">
                                 <table className="min-w-full text-sm text-left text-slate-500">
                                   <thead className="text-xs text-slate-700 uppercase bg-slate-50">
                                     <tr>
-                                      <th className="px-4 py-2">月份</th>
-                                      <th className="px-4 py-2 text-right">{selectedYear} (人次)</th>
-                                      <th className="px-4 py-2 text-right">{selectedYear - 1} (人次)</th>
-                                      <th className="px-4 py-2 text-right">增長率</th>
+                                      <th className="px-6 py-3">月份</th>
+                                      <th className="px-6 py-3 text-right">{selectedYear} (人次)</th>
+                                      <th className="px-6 py-3 text-right">{selectedYear - 1} (人次)</th>
+                                      <th className="px-6 py-3 text-right">增長率</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -267,16 +265,16 @@ const App: React.FC = () => {
                                             : '-';
                                             
                                         return (
-                                          <tr key={idx} className="border-b hover:bg-slate-50">
-                                            <td className="px-4 py-2 font-medium text-slate-900">{row.period}</td>
-                                            <td className="px-4 py-2 text-right font-mono text-slate-700">
+                                          <tr key={idx} className="border-b hover:bg-slate-50 last:border-b-0 transition-colors">
+                                            <td className="px-6 py-3 font-medium text-slate-900">{row.period}</td>
+                                            <td className="px-6 py-3 text-right font-mono text-slate-700">
                                                 {row.passengers > 0 ? new Intl.NumberFormat('zh-TW').format(row.passengers) : '-'}
                                             </td>
-                                            <td className="px-4 py-2 text-right font-mono text-slate-500">
+                                            <td className="px-6 py-3 text-right font-mono text-slate-500">
                                                 {row.comparison ? new Intl.NumberFormat('zh-TW').format(row.comparison) : '-'}
                                             </td>
-                                            <td className="px-4 py-2 text-right">
-                                              <span className={`${parseFloat(growth) > 0 ? 'text-green-600' : parseFloat(growth) < 0 ? 'text-red-600' : 'text-slate-400'}`}>
+                                            <td className="px-6 py-3 text-right">
+                                              <span className={`font-medium ${parseFloat(growth) > 0 ? 'text-green-600' : parseFloat(growth) < 0 ? 'text-red-600' : 'text-slate-400'}`}>
                                                 {growth !== '-' && parseFloat(growth) > 0 ? '+' : ''}{growth !== '-' ? growth + '%' : '-'}
                                               </span>
                                             </td>
@@ -287,14 +285,6 @@ const App: React.FC = () => {
                                 </table>
                              </div>
                            )}
-                        </div>
-                        
-                        <div className="lg:col-span-1 border-t lg:border-t-0 lg:border-l border-slate-100 lg:pl-8 pt-6 lg:pt-0">
-                          <AnalysisCard 
-                            content={state.data.summary} 
-                            sources={state.data.sources} 
-                          />
-                        </div>
                       </div>
                     ) : (
                       // Skeleton Loader
