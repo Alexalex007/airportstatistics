@@ -3,11 +3,12 @@ import Header from './components/Header';
 import HeroSearch from './components/HeroSearch';
 import StatsChart from './components/StatsChart';
 import AnalysisCard from './components/AnalysisCard';
+import AddDataModal from './components/AddDataModal'; // Import new modal
 import { fetchAirportStats } from './services/geminiService';
-import { SearchState, AirportData } from './types';
-import { AlertCircle, Users } from 'lucide-react';
+import { SearchState, AirportData, AirportDefinition } from './types';
+import { AlertCircle, Users, Trash2, Edit } from 'lucide-react';
 
-const AIRPORTS = [
+const DEFAULT_AIRPORTS: AirportDefinition[] = [
   { code: 'HKG', name: '香港國際機場' },
   { code: 'TPE', name: '台灣桃園機場' },
   { code: 'SIN', name: '新加坡樟宜機場' },
@@ -22,10 +23,19 @@ const calculateTotal = (data: AirportData | null): number => {
 };
 
 const App: React.FC = () => {
-  const [selectedYear, setSelectedYear] = useState<number>(2024);
+  const [selectedYear, setSelectedYear] = useState<number>(2025);
+  const [customAirports, setCustomAirports] = useState<AirportDefinition[]>([]);
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingData, setEditingData] = useState<{code: string, name: string, data: AirportData | null} | null>(null);
+
+  // Combine default and custom airports for display
+  const allAirports = [...DEFAULT_AIRPORTS, ...customAirports];
+
   const [results, setResults] = useState<Record<string, SearchState>>(() => {
     const initial: Record<string, SearchState> = {};
-    AIRPORTS.forEach(ap => {
+    DEFAULT_AIRPORTS.forEach(ap => {
       initial[ap.code] = { isLoading: true, error: null, data: null };
     });
     return initial;
@@ -34,15 +44,19 @@ const App: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
 
   const loadManualData = useCallback(async (year: number) => {
+    // Only fetch for DEFAULT airports, keep custom ones as they are (or reset them if needed, but here we preserve structure)
+    // We update loading state only for default airports
     setResults(prev => {
         const next = { ...prev };
-        AIRPORTS.forEach(ap => {
+        DEFAULT_AIRPORTS.forEach(ap => {
+            // Only fetch if we don't have custom override (conceptually, though here we just overwrite anyway initially)
+            // But let's re-fetch to be safe on year change.
             next[ap.code] = { ...next[ap.code], isLoading: true };
         });
         return next;
     });
 
-    const promises = AIRPORTS.map(async (ap) => {
+    const promises = DEFAULT_AIRPORTS.map(async (ap) => {
       try {
         const query = `${ap.code} ${ap.name}`;
         // Pass the year to the service
@@ -67,8 +81,6 @@ const App: React.FC = () => {
   // Handle year change
   const handleYearChange = (year: number) => {
     setSelectedYear(year);
-    // Don't need to call loadManualData here explicitly if we add year to useEffect dependency,
-    // but calling it explicitly is safer for cleaner effect logic.
   };
 
   // Load data when year changes
@@ -76,9 +88,56 @@ const App: React.FC = () => {
     loadManualData(selectedYear);
   }, [selectedYear, loadManualData]);
 
+  // Handle saving new custom data
+  const handleSaveCustomData = (code: string, name: string, data: AirportData, year: number) => {
+    // 1. Add to custom airports list if not exists and not in default
+    const isDefault = DEFAULT_AIRPORTS.some(ap => ap.code === code);
+    const existsInCustom = customAirports.find(ap => ap.code === code);
+    
+    if (!isDefault && !existsInCustom) {
+      setCustomAirports(prev => [...prev, { code, name, isCustom: true }]);
+    }
+
+    // 2. Directly inject data into results state
+    setResults(prev => ({
+      ...prev,
+      [code]: { isLoading: false, error: null, data: data }
+    }));
+
+    // If the year of input data matches current view, perfect. 
+    // If not, we might want to alert user or switch view, but for now we just save it.
+    if (year !== selectedYear) {
+      setSelectedYear(year);
+    }
+  };
+
+  const removeCustomAirport = (code: string) => {
+    setCustomAirports(prev => prev.filter(ap => ap.code !== code));
+    setResults(prev => {
+      const next = { ...prev };
+      delete next[code];
+      return next;
+    });
+  };
+
+  const openAddModal = () => {
+    setEditingData(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (airport: AirportDefinition) => {
+     const currentResult = results[airport.code];
+     setEditingData({
+         code: airport.code,
+         name: airport.name,
+         data: currentResult?.data || null
+     });
+     setIsModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Header />
+      <Header onOpenAddModal={openAddModal} />
       
       <main className="flex-grow">
         <HeroSearch 
@@ -90,45 +149,80 @@ const App: React.FC = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           
-          <div className="flex items-center mb-6">
+          <div className="flex items-center mb-6 justify-between">
              <h2 className="text-2xl font-bold text-slate-800 border-l-4 border-blue-600 pl-4">
                {selectedYear} 年統計概覽
              </h2>
+             {customAirports.length > 0 && (
+               <span className="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                 包含 {customAirports.length} 個自定義數據源
+               </span>
+             )}
           </div>
 
           <div className="space-y-12">
-            {AIRPORTS.map((airport) => {
+            {allAirports.map((airport) => {
               const state = results[airport.code];
-              if (!state) return null;
+              // If it's a custom airport and we don't have data for this specific year (because user added it for another year), 
+              // we might show empty or null.
+              if (!state && !airport.isCustom) return null;
+              if (airport.isCustom && !state) return null; // Should not happen given logic
 
-              const totalPassengers = calculateTotal(state.data);
+              const totalPassengers = calculateTotal(state?.data || null);
 
               return (
-                <div key={airport.code} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in transition-all">
+                <div key={airport.code} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in transition-all relative group">
                   
                   {/* Airport Header */}
                   <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between">
                     <div className="flex items-center mb-2 sm:mb-0">
-                       <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded mr-3">{airport.code}</span>
-                       <h2 className="text-xl font-bold text-slate-800">{airport.name}</h2>
+                       <span className={`${airport.isCustom ? 'bg-purple-600' : 'bg-blue-600'} text-white text-xs font-bold px-2 py-1 rounded mr-3`}>
+                         {airport.code}
+                       </span>
+                       <h2 className="text-xl font-bold text-slate-800">
+                         {airport.name} 
+                         {airport.isCustom && <span className="ml-2 text-xs font-normal text-purple-600 border border-purple-200 bg-purple-50 px-2 py-0.5 rounded">自定義</span>}
+                       </h2>
                     </div>
-                    {state.isLoading ? (
-                      <span className="text-sm text-slate-400">更新中...</span>
-                    ) : (
-                      state.data && (
-                       <div className="flex items-center text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-                          <Users size={16} className="mr-2" />
-                          <span className="text-sm font-semibold">
-                            {selectedYear} 總客運量: {new Intl.NumberFormat('zh-TW').format(totalPassengers)} 人次
-                          </span>
-                       </div>
-                      )
-                    )}
+                    
+                    <div className="flex items-center space-x-2 sm:space-x-4">
+                        {state?.isLoading ? (
+                          <span className="text-sm text-slate-400">更新中...</span>
+                        ) : (
+                          state?.data && (
+                           <div className="hidden sm:flex items-center text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 mr-2">
+                              <Users size={16} className="mr-2" />
+                              <span className="text-sm font-semibold">
+                                {selectedYear} 總數: {new Intl.NumberFormat('zh-TW').format(totalPassengers)}
+                              </span>
+                           </div>
+                          )
+                        )}
+                        
+                        <button 
+                            onClick={() => openEditModal(airport)}
+                            className="flex items-center space-x-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1.5 rounded-md text-sm font-medium transition-colors shadow-sm"
+                            title="編輯/更新數據"
+                        >
+                            <Edit size={14} />
+                            <span>更新數據</span>
+                        </button>
+
+                        {airport.isCustom && (
+                          <button 
+                            onClick={() => removeCustomAirport(airport.code)}
+                            className="text-slate-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-md"
+                            title="移除此數據"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
+                    </div>
                   </div>
 
                   {/* Content */}
                   <div className="p-6">
-                    {state.error && (
+                    {state?.error && (
                       <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-md">
                         <div className="flex">
                           <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
@@ -137,7 +231,7 @@ const App: React.FC = () => {
                       </div>
                     )}
 
-                    {state.data ? (
+                    {state?.data ? (
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2">
                            <StatsChart 
@@ -190,7 +284,7 @@ const App: React.FC = () => {
                       </div>
                     ) : (
                       // Skeleton Loader
-                      state.isLoading && (
+                      state?.isLoading && (
                         <div className="animate-pulse space-y-6">
                            <div className="h-64 bg-slate-100 rounded-xl"></div>
                            <div className="h-24 bg-slate-100 rounded-xl"></div>
@@ -205,6 +299,14 @@ const App: React.FC = () => {
 
         </div>
       </main>
+      
+      <AddDataModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveCustomData}
+        currentYear={selectedYear}
+        initialData={editingData}
+      />
 
       <footer className="bg-slate-900 text-slate-400 py-8 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 text-center">
