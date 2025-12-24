@@ -15,7 +15,8 @@ interface AddDataModalProps {
 }
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const YEARS_RANGE = [2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
+// Updated range starting from 2025 as requested
+const YEARS_RANGE = [2025, 2026, 2027, 2028, 2029, 2030];
 const DATA_PREFIX = 'skymetrics_data_';
 
 const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, currentYear, initialData }) => {

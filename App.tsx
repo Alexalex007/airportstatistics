@@ -369,6 +369,7 @@ const App: React.FC = () => {
                                         <th className="px-4 sm:px-6 py-3 whitespace-nowrap">月份</th>
                                         <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">{selectedYear} (人次)</th>
                                         <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap text-slate-400 dark:text-slate-500">{selectedYear - 1} (人次)</th>
+                                        <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">增長額</th>
                                         <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">增長率</th>
                                       </tr>
                                     </thead>
@@ -382,6 +383,14 @@ const App: React.FC = () => {
                                           const growth = (hasCurrent && hasPrev) 
                                               ? ((row.passengers - row.comparison!) / row.comparison! * 100).toFixed(1) 
                                               : '-';
+                                          
+                                          // Calculate growth amount and round to nearest thousand
+                                          const growthAmountRaw = (hasCurrent && hasPrev) 
+                                              ? (row.passengers - row.comparison!) 
+                                              : null;
+                                          const growthAmountRounded = growthAmountRaw !== null 
+                                              ? Math.round(growthAmountRaw / 1000) * 1000 
+                                              : null;
                                               
                                           return (
                                             <tr key={idx} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
@@ -391,6 +400,13 @@ const App: React.FC = () => {
                                               </td>
                                               <td className="px-4 sm:px-6 py-2.5 text-right font-mono text-slate-400 dark:text-slate-500">
                                                   {row.comparison ? new Intl.NumberFormat('zh-TW').format(row.comparison) : <span className="text-slate-200 dark:text-slate-700">-</span>}
+                                              </td>
+                                              <td className="px-4 sm:px-6 py-2.5 text-right font-mono">
+                                                {growthAmountRounded !== null ? (
+                                                  <span className={growthAmountRounded >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>
+                                                    {growthAmountRounded > 0 ? '+' : ''}{new Intl.NumberFormat('zh-TW').format(growthAmountRounded)}
+                                                  </span>
+                                                ) : <span className="text-slate-200 dark:text-slate-700">-</span>}
                                               </td>
                                               <td className="px-4 sm:px-6 py-2.5 text-right">
                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
