@@ -51,11 +51,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, theme, onToggleTheme
         <div className={`absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay transition-opacity duration-1000 ${isLight ? 'opacity-10' : 'opacity-20'}`}></div>
       </div>
 
-      {/* --- Main Content Layout (Flex Column for Lock Scroll) --- */}
-      <div className="relative z-10 w-full h-[100dvh] flex flex-col items-center justify-between py-6 px-4 sm:px-8 max-w-7xl mx-auto">
+      {/* --- Main Content Layout --- */}
+      {/* 
+          Mobile: justify-between (spreads items out vertically)
+          Tablet+: justify-center (centers items vertically with gap)
+      */}
+      <div className="relative z-10 w-full h-[100dvh] flex flex-col items-center justify-between md:justify-center py-6 px-4 sm:px-8 max-w-7xl mx-auto md:gap-16">
         
-        {/* 1. Header Area: Theme Toggle (Top Right) */}
-        <div className="w-full flex justify-end h-[50px]">
+        {/* 1. Header Area: Theme Toggle */}
+        {/* 
+            Mobile: Relative flow, pushes content down.
+            Tablet+: Absolute positioning to top-right, removed from flex flow.
+        */}
+        <div className="w-full flex justify-end h-[50px] md:absolute md:top-8 md:right-8 md:h-auto z-50">
              <button 
                 onClick={onToggleTheme}
                 className={`
@@ -69,7 +77,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, theme, onToggleTheme
         </div>
 
         {/* 2. Hero Section (Logo + Titles) */}
-        <div className="flex-grow flex flex-col items-center justify-center text-center -mt-8 sm:-mt-0">
+        {/* 
+            Mobile: flex-grow ensures it takes available space and centers itself.
+            Tablet+: flex-grow-0 allows it to sit tightly with the cards below.
+        */}
+        <div className="flex-grow md:flex-grow-0 flex flex-col items-center justify-center text-center -mt-8 sm:-mt-0 md:mt-0">
             {/* Badge */}
             <div className={`mb-6 sm:mb-8 transition-all duration-1000 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
               <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border backdrop-blur-md shadow-lg transition-colors duration-500 ${badgeBg}`}>
@@ -95,8 +107,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, theme, onToggleTheme
             </p>
         </div>
 
-        {/* 3. Feature Grid (Responsive Compact) */}
-        <div className={`w-full max-w-md sm:max-w-4xl transition-all duration-1000 delay-300 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+        {/* 3. Feature Grid & CTA */}
+        {/* 
+            Mobile: w-full, standard flow.
+            Tablet+: md:w-auto, centered.
+        */}
+        <div className={`w-full max-w-md sm:max-w-4xl md:w-auto transition-all duration-1000 delay-300 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 mb-8 sm:mb-12">
                <FeatureCard 
                   isLight={isLight}
@@ -136,7 +152,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, theme, onToggleTheme
         </div>
 
         {/* 4. Footer */}
-        <div className={`transition-all duration-1000 delay-500 transform ${mounted ? 'opacity-100' : 'opacity-0'}`}>
+        {/* 
+            Mobile: In flow.
+            Tablet+: Absolute positioning to bottom, removed from flex flow.
+        */}
+        <div className={`transition-all duration-1000 delay-500 transform ${mounted ? 'opacity-100' : 'opacity-0'} md:absolute md:bottom-6`}>
            <p className={`text-[10px] sm:text-xs font-mono tracking-widest uppercase mb-2 ${isLight ? 'text-slate-400' : 'text-slate-600'}`}>
               Aviation Intelligence Dashboard v2.0
            </p>
