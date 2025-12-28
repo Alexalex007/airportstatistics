@@ -74,6 +74,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
   isOpen,
   onClose,
   allAirports,
+  results, // Added to dependencies to trigger updates
   year = 2025
 }) => {
   // --- State Management ---
@@ -104,7 +105,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
   // --- Data Fetching Logic ---
 
   const fetchSeriesData = async (airport: AirportDefinition, reqYear: number): Promise<number[] | null> => {
-    setLoadingStates(prev => ({ ...prev, [`${airport.code}-${reqYear}`]: true }));
+    // Note: Do not set global loading state here during background refresh to avoid UI flickering
     try {
       let chartData: { passengers: number }[] = [];
       if (airport.isCustom) {
@@ -121,10 +122,49 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     } catch (e) {
       console.error(e);
       return null;
-    } finally {
-      setLoadingStates(prev => ({ ...prev, [`${airport.code}-${reqYear}`]: false }));
     }
   };
+
+  // --- Real-time Data Synchronization ---
+  // This effect watches for changes in `results` (triggered when user saves data in AddDataModal)
+  // and re-fetches the data for all currently displayed series.
+  useEffect(() => {
+    const refreshActiveData = async () => {
+        // 1. Refresh Compare Mode Series
+        if (compareSeries.length > 0) {
+            const updatedCompareSeries = await Promise.all(compareSeries.map(async (series) => {
+                const airport = allAirports.find(a => a.code === series.code);
+                // Fallback to series data if airport def not found (e.g. custom)
+                const airportDef = airport || { code: series.code, name: series.name, isCustom: true };
+                
+                const data = await fetchSeriesData(airportDef, series.year);
+                if (!data) return series;
+
+                const total = data.reduce((a, b) => a + b, 0);
+                const peak = Math.max(...data);
+                return { ...series, data, total, peak };
+            }));
+            setCompareSeries(updatedCompareSeries);
+        }
+
+        // 2. Refresh History Mode Series
+        if (historySeries.length > 0 && selectedHistoryAirport) {
+            const updatedHistorySeries = await Promise.all(historySeries.map(async (series) => {
+                const data = await fetchSeriesData(selectedHistoryAirport, series.year);
+                if (!data) return series;
+
+                const total = data.reduce((a, b) => a + b, 0);
+                const peak = Math.max(...data);
+                return { ...series, data, total, peak };
+            }));
+            setHistorySeries(updatedHistorySeries);
+        }
+    };
+
+    if (isOpen) {
+        refreshActiveData();
+    }
+  }, [results, allAirports, isOpen, selectedHistoryAirport]); // Dependencies trigger the refresh
 
   // Handler: Toggle Airport in "Compare Mode"
   const toggleCompareAirport = async (airport: AirportDefinition) => {
@@ -137,9 +177,11 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     }
 
     // Add
+    setLoadingStates(prev => ({ ...prev, [`${airport.code}-${targetYear}`]: true }));
     const dataArray = await fetchSeriesData(airport, targetYear);
+    setLoadingStates(prev => ({ ...prev, [`${airport.code}-${targetYear}`]: false }));
+
     if (!dataArray || !dataArray.some(v => v > 0)) {
-       // Ideally use a toast here
        return;
     }
 
@@ -169,7 +211,10 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     }
 
     // Add
+    setLoadingStates(prev => ({ ...prev, [`${selectedHistoryAirport.code}-${reqYear}`]: true }));
     const dataArray = await fetchSeriesData(selectedHistoryAirport, reqYear);
+    setLoadingStates(prev => ({ ...prev, [`${selectedHistoryAirport.code}-${reqYear}`]: false }));
+
     if (!dataArray || !dataArray.some(v => v > 0)) {
        return;
     }
