@@ -105,23 +105,32 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
   // --- Data Fetching Logic ---
 
   const fetchSeriesData = async (airport: AirportDefinition, reqYear: number): Promise<number[] | null> => {
-    // Note: Do not set global loading state here during background refresh to avoid UI flickering
-    try {
-      let chartData: { passengers: number }[] = [];
-      if (airport.isCustom) {
-        const key = `${DATA_PREFIX}${airport.code}_${reqYear}`;
-        const savedStr = localStorage.getItem(key);
-        if (savedStr) {
-          chartData = JSON.parse(savedStr).chartData;
+    // CRITICAL FIX: Always check LocalStorage FIRST, even for standard airports.
+    // This ensures that if a user manually updates "HKG" for "2026", we use that data 
+    // instead of the empty array from the hardcoded service.
+    
+    const key = `${DATA_PREFIX}${airport.code}_${reqYear}`;
+    const savedStr = localStorage.getItem(key);
+
+    if (savedStr) {
+        try {
+            const parsed = JSON.parse(savedStr);
+            if (parsed && parsed.chartData) {
+                return parsed.chartData.map((d: any) => d.passengers);
+            }
+        } catch (e) {
+            console.error("Error parsing local data", e);
         }
-      } else {
-         const result = await fetchAirportStats(airport.code, reqYear);
-         chartData = result.chartData;
-      }
-      return chartData.map(d => d.passengers);
+    }
+
+    // If no local data found, fallback to the standard service
+    try {
+        const result = await fetchAirportStats(airport.code, reqYear);
+        return result.chartData.map(d => d.passengers);
     } catch (e) {
-      console.error(e);
-      return null;
+        // Only log warning if it's strictly a fetch error, 
+        // usually this means no data exists for that year in the hardcoded set.
+        return null;
     }
   };
 
@@ -138,7 +147,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                 const airportDef = airport || { code: series.code, name: series.name, isCustom: true };
                 
                 const data = await fetchSeriesData(airportDef, series.year);
-                if (!data) return series;
+                if (!data) return series; // Keep old data if fetch fails completely
 
                 const total = data.reduce((a, b) => a + b, 0);
                 const peak = Math.max(...data);
@@ -271,8 +280,6 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
             }
           }
           // Only show point if we have encountered data at least once. 
-          // If the year hasn't started or no data yet, it might be weird.
-          // For simplicity: if sum > 0, show it.
           val = sum > 0 ? sum : null;
         } else {
           // Normal Monthly Logic
