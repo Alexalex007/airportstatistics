@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, BarChart2, CheckSquare, Square, Filter, Trash2, Calendar, Plus } from 'lucide-react';
+import { X, BarChart2, Plus, Calendar, Layers, TrendingUp, History, Plane } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -7,11 +7,10 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
-  Legend
+  ResponsiveContainer
 } from 'recharts';
 import { AirportDefinition } from '../types';
-import { fetchAirportStats, getAvailableYears } from '../services/geminiService';
+import { fetchAirportStats } from '../services/geminiService';
 
 interface ComparisonModalProps {
   isOpen: boolean;
@@ -22,30 +21,54 @@ interface ComparisonModalProps {
 }
 
 interface ChartSeries {
-  id: string; // Unique ID: "HKG-2024"
+  id: string; // Unique ID: "HKG-2024" or "2024" (in history mode)
   code: string;
   name: string;
   year: number;
-  data: number[];
+  data: number[]; // Array of 12 numbers
+  total: number;
+  peak: number;
   color: string;
 }
 
+// Mode Definitions
+type ViewMode = 'compare' | 'history';
+type ChartType = 'monthly' | 'cumulative';
+
+// Neon / Vivid Color Palette
 const COLORS = [
-  '#3b82f6', // Blue
-  '#ef4444', // Red
-  '#10b981', // Emerald
-  '#f59e0b', // Amber
-  '#8b5cf6', // Violet
-  '#ec4899', // Pink
-  '#06b6d4', // Cyan
-  '#84cc16', // Lime
-  '#6366f1', // Indigo
-  '#d946ef', // Fuchsia
+  '#3b82f6', // Blue 500
+  '#ef4444', // Red 500
+  '#10b981', // Emerald 500
+  '#f59e0b', // Amber 500
+  '#d946ef', // Fuchsia 500
+  '#06b6d4', // Cyan 500
+  '#8b5cf6', // Violet 500
+  '#ec4899', // Pink 500
+  '#84cc16', // Lime 500
+  '#6366f1', // Indigo 500
 ];
 
 const DATA_PREFIX = 'skymetrics_data_';
-// Define selectable years range
-const YEARS_RANGE = [2026, 2025, 2024, 2023, 2019]; 
+const YEARS_RANGE = [2026, 2025, 2024, 2023]; 
+
+// --- Custom Active Dot Component ---
+const CustomActiveDot = (props: any) => {
+  const { cx, cy, stroke } = props;
+  if (!cx || !cy) return null;
+
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={12} fill={stroke} fillOpacity={0.2} />
+      <circle cx={cx} cy={cy} r={6} fill="#fff" stroke={stroke} strokeWidth={2} />
+      <foreignObject x={cx - 10} y={cy - 10} width={20} height={20}>
+         <div style={{ color: stroke, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+            <Plane size={14} style={{ transform: 'rotate(-45deg)' }} />
+         </div>
+      </foreignObject>
+    </g>
+  );
+};
 
 const ComparisonModal: React.FC<ComparisonModalProps> = ({
   isOpen,
@@ -53,129 +76,169 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
   allAirports,
   year = 2025
 }) => {
-  // State
+  // --- State Management ---
+  
+  // 1. View Mode
+  const [viewMode, setViewMode] = useState<ViewMode>('compare');
+  
+  // 2. Multi-Airport Mode State
   const [targetYear, setTargetYear] = useState<number>(year);
-  const [seriesList, setSeriesList] = useState<ChartSeries[]>([]);
+  const [compareSeries, setCompareSeries] = useState<ChartSeries[]>([]);
+  const [chartType, setChartType] = useState<ChartType>('monthly');
+
+  // 3. Historical Mode State
+  const [selectedHistoryAirport, setSelectedHistoryAirport] = useState<AirportDefinition>(allAirports[0]);
+  const [historySeries, setHistorySeries] = useState<ChartSeries[]>([]);
+
+  // 4. Shared UI State
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const [hoveredSeriesId, setHoveredSeriesId] = useState<string | null>(null);
 
-  // Initialize with current year's data if provided/needed, 
-  // currently we start empty or could auto-select something.
-  // Let's start clean or user can select.
-
-  const getNextColor = () => {
-    const usedColors = seriesList.map(s => s.color);
-    // Find first unused color from palette
+  // Helper: Assign color
+  const getNextColor = (currentSeries: ChartSeries[]) => {
+    const usedColors = currentSeries.map(s => s.color);
     const available = COLORS.find(c => !usedColors.includes(c));
-    // If all used, cycle through
-    return available || COLORS[seriesList.length % COLORS.length];
+    return available || COLORS[currentSeries.length % COLORS.length];
   };
 
-  const toggleSeries = async (airport: AirportDefinition) => {
+  // --- Data Fetching Logic ---
+
+  const fetchSeriesData = async (airport: AirportDefinition, reqYear: number): Promise<number[] | null> => {
+    setLoadingStates(prev => ({ ...prev, [`${airport.code}-${reqYear}`]: true }));
+    try {
+      let chartData: { passengers: number }[] = [];
+      if (airport.isCustom) {
+        const key = `${DATA_PREFIX}${airport.code}_${reqYear}`;
+        const savedStr = localStorage.getItem(key);
+        if (savedStr) {
+          chartData = JSON.parse(savedStr).chartData;
+        }
+      } else {
+         const result = await fetchAirportStats(airport.code, reqYear);
+         chartData = result.chartData;
+      }
+      return chartData.map(d => d.passengers);
+    } catch (e) {
+      console.error(e);
+      return null;
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [`${airport.code}-${reqYear}`]: false }));
+    }
+  };
+
+  // Handler: Toggle Airport in "Compare Mode"
+  const toggleCompareAirport = async (airport: AirportDefinition) => {
     const targetId = `${airport.code}-${targetYear}`;
     
-    // 1. If exists, remove it
-    if (seriesList.some(s => s.id === targetId)) {
-      setSeriesList(prev => prev.filter(s => s.id !== targetId));
+    // Remove if exists
+    if (compareSeries.some(s => s.id === targetId)) {
+      setCompareSeries(prev => prev.filter(s => s.id !== targetId));
       return;
     }
 
-    // 2. If not exists, fetch and add
-    setLoadingStates(prev => ({ ...prev, [airport.code]: true }));
-
-    try {
-      let chartData: { passengers: number }[] = [];
-      
-      if (airport.isCustom) {
-        // Local Storage
-        const key = `${DATA_PREFIX}${airport.code}_${targetYear}`;
-        const savedStr = localStorage.getItem(key);
-        if (savedStr) {
-          const parsed = JSON.parse(savedStr);
-          chartData = parsed.chartData;
-        } else {
-          // Fallback or empty if not found
-          chartData = []; 
-        }
-      } else {
-        // API / Service
-        // Note: fetchAirportStats might throw if year data missing, we handle it
-        try {
-           const result = await fetchAirportStats(airport.code, targetYear);
-           chartData = result.chartData;
-        } catch (e) {
-           chartData = [];
-        }
-      }
-
-      // Check if valid data exists
-      const hasData = chartData && chartData.some(d => d.passengers > 0);
-      
-      if (!hasData) {
-        alert(`${airport.name} 暫無 ${targetYear} 年的數據`);
-        setLoadingStates(prev => ({ ...prev, [airport.code]: false }));
-        return;
-      }
-
-      const dataArray = chartData.map(d => d.passengers);
-      
-      const newSeries: ChartSeries = {
-        id: targetId,
-        code: airport.code,
-        name: airport.name,
-        year: targetYear,
-        data: dataArray,
-        color: getNextColor()
-      };
-
-      setSeriesList(prev => [...prev, newSeries]);
-
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingStates(prev => ({ ...prev, [airport.code]: false }));
+    // Add
+    const dataArray = await fetchSeriesData(airport, targetYear);
+    if (!dataArray || !dataArray.some(v => v > 0)) {
+       // Ideally use a toast here
+       return;
     }
+
+    const total = dataArray.reduce((a, b) => a + b, 0);
+    const peak = Math.max(...dataArray);
+
+    setCompareSeries(prev => [...prev, {
+      id: targetId,
+      code: airport.code,
+      name: airport.name,
+      year: targetYear,
+      data: dataArray,
+      total,
+      peak,
+      color: getNextColor(prev)
+    }]);
   };
 
-  const removeSeriesById = (id: string) => {
-    setSeriesList(prev => prev.filter(s => s.id !== id));
-  };
-
-  const toggleAllCurrentYear = () => {
-    // Check how many of visible airports are selected for *targetYear*
-    const relevantIds = allAirports.map(ap => `${ap.code}-${targetYear}`);
-    const selectedCount = seriesList.filter(s => relevantIds.includes(s.id)).length;
+  // Handler: Toggle Year in "History Mode"
+  const toggleHistoryYear = async (reqYear: number) => {
+    const targetId = `${reqYear}`; // ID is just the year in this mode
     
-    if (selectedCount === allAirports.length) {
-      // Unselect all for this year
-      setSeriesList(prev => prev.filter(s => s.year !== targetYear));
-    } else {
-      // Select all for this year (sequentially to manage async/colors? 
-      // Actually strictly better to let user select one by one to avoid spamming, 
-      // but "Select All" is requested. Let's do a simple loop but be careful about API limits if real.
-      // Here it's mock/simulated, so it's fine.
-      
-      // We'll filter only those not yet selected
-      allAirports.forEach(ap => {
-         const id = `${ap.code}-${targetYear}`;
-         if (!seriesList.some(s => s.id === id)) {
-           toggleSeries(ap);
-         }
-      });
+    // Remove if exists
+    if (historySeries.some(s => s.id === targetId)) {
+      setHistorySeries(prev => prev.filter(s => s.id !== targetId));
+      return;
     }
+
+    // Add
+    const dataArray = await fetchSeriesData(selectedHistoryAirport, reqYear);
+    if (!dataArray || !dataArray.some(v => v > 0)) {
+       return;
+    }
+
+    const total = dataArray.reduce((a, b) => a + b, 0);
+    const peak = Math.max(...dataArray);
+
+    setHistorySeries(prev => {
+        // Sort series by year for better legend order
+        const newSeries = [...prev, {
+          id: targetId,
+          code: reqYear.toString(), // Display as Year
+          name: reqYear.toString(),
+          year: reqYear,
+          data: dataArray,
+          total,
+          peak,
+          color: getNextColor(prev)
+        }];
+        return newSeries.sort((a, b) => b.year - a.year);
+    });
   };
 
-  // Recharts Data Transformation
+  // Reset history series when changing airport in History Mode
+  const handleHistoryAirportChange = (airport: AirportDefinition) => {
+    setSelectedHistoryAirport(airport);
+    setHistorySeries([]); // Clear chart on airport switch
+  };
+
+  // --- Chart Data Transformation ---
+
+  // Decide which list to use based on mode
+  const activeSeries = viewMode === 'compare' ? compareSeries : historySeries;
+
   const chartData = useMemo(() => {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
     return months.map((month, index) => {
       const dataPoint: any = { name: month };
-      seriesList.forEach(series => {
-        const val = series.data[index];
-        dataPoint[series.id] = (val && val > 0) ? val : null;
+      
+      activeSeries.forEach(series => {
+        let val: number | null = null;
+
+        if (viewMode === 'compare' && chartType === 'cumulative') {
+          // Cumulative Logic
+          let sum = 0;
+          let hasData = false;
+          // Sum up to current index
+          for (let i = 0; i <= index; i++) {
+            const v = series.data[i];
+            if (v > 0) {
+              sum += v;
+              hasData = true;
+            }
+          }
+          // Only show point if we have encountered data at least once. 
+          // If the year hasn't started or no data yet, it might be weird.
+          // For simplicity: if sum > 0, show it.
+          val = sum > 0 ? sum : null;
+        } else {
+          // Normal Monthly Logic
+          val = (series.data[index] && series.data[index] > 0) ? series.data[index] : null;
+        }
+        
+        dataPoint[series.id] = val;
       });
       return dataPoint;
     });
-  }, [seriesList]);
+  }, [activeSeries, viewMode, chartType]);
 
   const formatYAxis = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -183,245 +246,309 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     return num.toString();
   };
 
+  // Re-fetch when changing year in Compare Mode (optional enhancement: could clear or auto-refetch)
+  useEffect(() => {
+     setCompareSeries([]); // Simple reset for now to avoid confusion
+  }, [targetYear]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-slate-50 dark:bg-slate-950 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-slate-50 dark:bg-slate-950 animate-in fade-in duration-300">
       
-      {/* Header - Fixed at Top */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-20">
-        <div className="flex items-center gap-3">
-           <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg text-indigo-600 dark:text-indigo-400">
-             <BarChart2 size={24} />
-           </div>
-           <div>
-             <h2 className="text-lg sm:text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
-               多機場對比實驗室
-             </h2>
-             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-               點選機場以加入圖表，切換年份可進行跨時空比對
-             </p>
-           </div>
+      {/* 1. Header & Mode Switcher */}
+      <div className="flex-shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-20">
+        <div className="px-4 sm:px-6 py-3 flex items-center justify-between">
+            {/* Title & Mode Tabs */}
+            <div className="flex items-center gap-4 sm:gap-8 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="bg-gradient-to-tr from-blue-600 to-cyan-500 p-1.5 rounded-lg text-white shadow-lg shadow-blue-500/20">
+                  <BarChart2 size={18} />
+                </div>
+                <h2 className="hidden sm:block text-base font-black text-slate-800 dark:text-slate-100 tracking-tight">
+                  SkyMetrics <span className="text-blue-600 dark:text-blue-400">Lab</span>
+                </h2>
+              </div>
+
+              {/* View Mode Toggle (Segmented Control) */}
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                 <button
+                   onClick={() => setViewMode('compare')}
+                   className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                     viewMode === 'compare' 
+                       ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                   }`}
+                 >
+                   <Layers size={14} />
+                   <span className="whitespace-nowrap">多機場對比</span>
+                 </button>
+                 <button
+                   onClick={() => setViewMode('history')}
+                   className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                     viewMode === 'history' 
+                       ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' 
+                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                   }`}
+                 >
+                   <History size={14} />
+                   <span className="whitespace-nowrap">歷史趨勢</span>
+                 </button>
+              </div>
+            </div>
+            
+            <button 
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors flex-shrink-0"
+            >
+              <X size={24} />
+            </button>
         </div>
-        <button 
-          onClick={onClose}
-          className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-        >
-          <X size={24} />
-        </button>
       </div>
 
-      {/* Main Content - Scrollable Area */}
-      {/* Changed: Removed overflow-hidden from mobile view, allow vertical scrolling for the whole area */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+      {/* 2. Chart Area (Center Fluid) */}
+      <div className="flex-1 relative bg-white dark:bg-slate-950 overflow-hidden flex flex-col">
         
-        {/* SIDEBAR: Controls */}
-        {/* Changed: Removed fixed h-[40vh] for mobile, allow auto height so it flows naturally */}
-        <div className="w-full lg:w-80 bg-white dark:bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 flex flex-col shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] z-10 flex-shrink-0">
-          
-          {/* 1. Year Selector (Tabs) */}
-          <div className="px-4 pt-4 pb-2">
-            <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <Calendar size={12} /> 設定目標年份
-            </h3>
-            <div className="flex space-x-2 overflow-x-auto custom-scrollbar pb-2">
-              {YEARS_RANGE.map(y => (
-                <button
-                  key={y}
-                  onClick={() => setTargetYear(y)}
-                  className={`
-                    px-3 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-all
-                    ${targetYear === y 
-                      ? 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 shadow-md transform scale-105' 
-                      : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'}
-                  `}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* Floating Controls Overlay (Top Center) */}
+        <div className="absolute top-4 left-0 right-0 z-10 flex flex-col items-center pointer-events-none gap-2">
+           
+           {/* Row 1: Main Control (Year for Compare / Airport for History) */}
+           <div className="pointer-events-auto shadow-lg rounded-full">
+              {viewMode === 'compare' ? (
+                // Compare Mode: Year Selector
+                <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-1 rounded-full border border-slate-200 dark:border-slate-700 flex space-x-1">
+                   {YEARS_RANGE.map(y => (
+                     <button
+                       key={y}
+                       onClick={() => setTargetYear(y)}
+                       className={`
+                         px-3 py-1 rounded-full text-xs font-bold transition-all
+                         ${targetYear === y 
+                           ? 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 shadow' 
+                           : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}
+                       `}
+                     >
+                       {y}
+                     </button>
+                   ))}
+                </div>
+              ) : (
+                // History Mode: Airport Selector (Simple Dropdown Simulation via horizontal scroll or select)
+                <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-4 py-1.5 rounded-full border border-purple-200 dark:border-purple-900/50 flex items-center gap-2">
+                   <span className="text-xs font-bold text-slate-400 uppercase">Subject:</span>
+                   <select 
+                      value={selectedHistoryAirport.code}
+                      onChange={(e) => {
+                        const ap = allAirports.find(a => a.code === e.target.value);
+                        if(ap) handleHistoryAirportChange(ap);
+                      }}
+                      className="bg-transparent text-sm font-black text-slate-800 dark:text-slate-100 outline-none cursor-pointer"
+                   >
+                      {allAirports.map(ap => (
+                        <option key={ap.code} value={ap.code}>{ap.code} - {ap.name}</option>
+                      ))}
+                   </select>
+                </div>
+              )}
+           </div>
 
-          {/* 2. Airport Grid */}
-          {/* Changed: Adjusted overflow handling for desktop only */}
-          <div className="lg:flex-1 lg:overflow-y-auto px-4 py-2 custom-scrollbar">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                選擇 {targetYear} 年數據
-              </h3>
-              <button 
-                onClick={toggleAllCurrentYear}
-                className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                全選/取消 ({targetYear})
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
-              {allAirports.map((airport, idx) => {
-                const targetId = `${airport.code}-${targetYear}`;
-                const isSelected = seriesList.some(s => s.id === targetId);
-                const isLoading = loadingStates[airport.code];
-                const seriesColor = seriesList.find(s => s.id === targetId)?.color;
-
-                return (
+           {/* Row 2: Sub Control (Chart Type for Compare Mode Only) */}
+           {viewMode === 'compare' && (
+             <div className="pointer-events-auto">
+               <div className="bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-sm p-0.5 rounded-full border border-slate-200 dark:border-slate-700 flex text-[10px] font-bold">
                   <button
-                    key={airport.code}
-                    onClick={() => toggleSeries(airport)}
-                    disabled={isLoading}
-                    className={`
-                      flex items-center px-3 py-3 rounded-xl border transition-all duration-200 text-left relative overflow-hidden group
-                      ${isSelected 
-                          ? 'bg-blue-50/50 dark:bg-slate-800 border-blue-500/50 shadow-sm' 
-                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                      }
-                      ${isLoading ? 'opacity-70 cursor-wait' : ''}
-                    `}
+                    onClick={() => setChartType('monthly')}
+                    className={`px-3 py-1 rounded-full transition-all ${chartType === 'monthly' ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-300 shadow-sm' : 'text-slate-500'}`}
                   >
-                    {/* Active Indicator Bar */}
-                    {isSelected && (
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 w-1.5" 
-                        style={{ backgroundColor: seriesColor }}
-                      />
-                    )}
-
-                    <div className={`mr-3 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`}>
-                      {isLoading ? (
-                        <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
-                      ) : (
-                        isSelected ? <CheckSquare size={18} /> : <Square size={18} />
-                      )}
-                    </div>
-                    
-                    <div className="flex flex-col min-w-0">
-                      <span className={`text-base font-black truncate ${isSelected ? 'text-slate-800 dark:text-slate-100' : 'text-slate-500 dark:text-slate-500'}`}>
-                        {airport.code}
-                      </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-[120px]">
-                        {airport.name}
-                      </span>
-                    </div>
+                    單月流量
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 3. Active List (Bottom) */}
-          <div className="bg-slate-50 dark:bg-slate-850 border-t border-slate-200 dark:border-slate-800 p-4 lg:max-h-[160px] lg:overflow-y-auto custom-scrollbar">
-             <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                <Filter size={12} /> 已選項目 ({seriesList.length})
-             </h3>
-             {seriesList.length === 0 ? (
-               <p className="text-[10px] text-slate-400 italic">尚未選擇任何數據</p>
-             ) : (
-               <div className="space-y-1">
-                 {seriesList.map(series => (
-                   <div key={series.id} className="flex items-center justify-between group bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg px-2 py-1.5">
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: series.color }}></div>
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                          {series.code}
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded font-mono">
-                          {series.year}
-                        </span>
-                      </div>
-                      <button 
-                        onClick={() => removeSeriesById(series.id)}
-                        className="text-slate-300 hover:text-red-500 transition-colors"
-                      >
-                        <X size={14} />
-                      </button>
-                   </div>
-                 ))}
+                  <button
+                    onClick={() => setChartType('cumulative')}
+                    className={`px-3 py-1 rounded-full transition-all ${chartType === 'cumulative' ? 'bg-white dark:bg-slate-600 text-emerald-600 dark:text-emerald-300 shadow-sm' : 'text-slate-500'}`}
+                  >
+                    累計流量
+                  </button>
                </div>
-             )}
-          </div>
+             </div>
+           )}
         </div>
 
-        {/* CHART AREA */}
-        {/* Changed: Added min-h-[500px] so chart has space on mobile, changed overflow behavior */}
-        <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-50 dark:bg-slate-950 flex flex-col min-h-[500px] lg:min-h-0 lg:h-full lg:overflow-hidden">
-          <div className="flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 p-4 sm:p-6 relative min-h-[300px]">
-            
-            {seriesList.length === 0 ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
-                <BarChart2 size={48} className="mb-4 opacity-20" />
-                <p>請從左側選擇機場與年份</p>
-                <div className="flex items-center gap-2 mt-4 text-xs opacity-60 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
-                   <span>💡 提示：切換上方年份標籤可添加不同年份的數據</span>
-                </div>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={chartData}
-                  margin={{ top: 20, right: 30, left: 10, bottom: 20 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:stroke-slate-700" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 12 }}
-                    dy={10}
-                  />
-                  <YAxis 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 12 }}
-                    tickFormatter={formatYAxis}
-                    width={45}
-                  />
-                  <Tooltip
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                      borderRadius: '12px', 
-                      border: 'none',
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                      padding: '12px'
-                    }}
-                    itemStyle={{ fontSize: '13px', fontWeight: 600, padding: '2px 0' }}
-                    labelStyle={{ color: '#64748b', marginBottom: '8px', fontWeight: 'bold' }}
-                    formatter={(value: number, name: string) => {
-                       const s = seriesList.find(item => item.id === name);
-                       const label = s ? `${s.code} ${s.year}` : name;
-                       return [new Intl.NumberFormat('zh-TW').format(value), label];
-                    }}
-                  />
-                  <Legend 
-                    verticalAlign="top" 
-                    height={36}
-                    iconType="circle"
-                    wrapperStyle={{ fontSize: '12px', fontWeight: 600 }}
-                    formatter={(value) => {
-                       const s = seriesList.find(item => item.id === value);
-                       return s ? `${s.code} '${s.year.toString().slice(-2)}` : value;
-                    }}
-                  />
-                  
-                  {seriesList.map((series) => (
+        <div className="flex-1 w-full h-full p-4 sm:p-6 pt-24 sm:pt-24">
+          {activeSeries.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-700 select-none animate-in fade-in zoom-in duration-300">
+               <div className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center mb-4">
+                 <Plus size={24} className="opacity-50" />
+               </div>
+               <p className="text-sm font-bold opacity-60">
+                 {viewMode === 'compare' ? '點擊下方選擇機場以對比' : '點擊下方選擇年份以查看趨勢'}
+               </p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={chartData}
+                margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
+                onMouseLeave={() => setHoveredSeriesId(null)}
+              >
+                <CartesianGrid 
+                  strokeDasharray="3 3" 
+                  vertical={false} 
+                  stroke="#e2e8f0" 
+                  strokeOpacity={0.1}
+                  className="dark:stroke-slate-700" 
+                />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }}
+                  dy={15}
+                />
+                <YAxis 
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94a3b8', fontSize: 11, fontFamily: 'monospace' }}
+                  tickFormatter={formatYAxis}
+                  width={40}
+                />
+                <Tooltip
+                  itemSorter={(item) => (item.value as number) * -1}
+                  contentStyle={{ 
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                    borderRadius: '12px', 
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    backdropFilter: 'blur(12px)',
+                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+                    padding: '12px',
+                    color: '#f8fafc'
+                  }}
+                  itemStyle={{ fontSize: '13px', fontWeight: 600, padding: '2px 0' }}
+                  labelStyle={{ color: '#94a3b8', marginBottom: '8px', fontSize: '12px', fontWeight: 700 }}
+                  formatter={(value: number, name: string) => {
+                      const s = activeSeries.find(item => item.id === name);
+                      const label = s ? (viewMode === 'compare' ? s.code : `${s.year}年`) : name;
+                      return [new Intl.NumberFormat('zh-TW').format(value), label];
+                  }}
+                  cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '4 4' }}
+                />
+                
+                {activeSeries.map((series) => {
+                  const isHovered = hoveredSeriesId === series.id;
+                  const isDimmed = hoveredSeriesId && hoveredSeriesId !== series.id;
+
+                  return (
                     <Line
                       key={series.id}
                       type="monotone"
                       dataKey={series.id}
                       stroke={series.color}
-                      strokeWidth={3}
-                      dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
-                      activeDot={{ r: 7, strokeWidth: 0 }}
+                      strokeWidth={isHovered ? 4 : 3}
+                      strokeOpacity={isDimmed ? 0.15 : 1}
+                      dot={false}
+                      activeDot={<CustomActiveDot />} 
                       connectNulls
-                      animationDuration={1500}
+                      animationDuration={800}
+                      onMouseEnter={() => setHoveredSeriesId(series.id)}
+                      onMouseLeave={() => setHoveredSeriesId(null)}
+                      style={{
+                        filter: isHovered ? `drop-shadow(0 0 8px ${series.color})` : 'none',
+                        transition: 'filter 0.3s ease'
+                      }}
                     />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </div>
+                  );
+                })}
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
-
       </div>
+
+      {/* 3. Controls Dock (Bottom Fixed) */}
+      <div className="flex-shrink-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 z-30 pb-safe">
+        <div className="max-w-7xl mx-auto w-full px-4 py-4 overflow-x-auto custom-scrollbar">
+           <div className="flex items-center space-x-3 min-w-max">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2 sticky left-0 bg-white/90 dark:bg-slate-900/90 px-2 z-10">
+                {viewMode === 'compare' ? 'Add Airport' : 'Add Year'}
+              </span>
+              
+              {/* Conditional Rendering based on View Mode */}
+              {viewMode === 'compare' ? (
+                // MODE: Multi-Airport Chips
+                allAirports.map((airport) => {
+                  const targetId = `${airport.code}-${targetYear}`;
+                  const isSelected = compareSeries.some(s => s.id === targetId);
+                  const isLoading = loadingStates[`${airport.code}-${targetYear}`];
+                  const seriesColor = compareSeries.find(s => s.id === targetId)?.color;
+
+                  return (
+                    <button
+                      key={airport.code}
+                      onClick={() => toggleCompareAirport(airport)}
+                      onMouseEnter={() => isSelected && setHoveredSeriesId(targetId)}
+                      onMouseLeave={() => setHoveredSeriesId(null)}
+                      disabled={isLoading}
+                      className={`
+                        relative group flex items-center space-x-2 pl-2 pr-4 py-2 rounded-full border transition-all duration-300
+                        ${isSelected 
+                          ? 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 border-transparent shadow-lg transform -translate-y-1' 
+                          : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500'}
+                      `}
+                      style={isSelected ? { borderColor: seriesColor, boxShadow: `0 4px 12px -2px ${seriesColor}40` } : {}}
+                    >
+                      <div 
+                        className={`w-2.5 h-2.5 rounded-full transition-all ${isSelected ? 'scale-110' : 'scale-100 opacity-50'}`}
+                        style={{ backgroundColor: isSelected ? seriesColor : 'currentColor' }}
+                      />
+                      <span className="text-sm font-black font-mono tracking-tight">{airport.code}</span>
+                      {isLoading && (
+                         <div className="absolute inset-0 bg-inherit rounded-full flex items-center justify-center opacity-80">
+                           <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                         </div>
+                      )}
+                    </button>
+                  );
+                })
+              ) : (
+                // MODE: Historical Year Chips
+                YEARS_RANGE.map((y) => {
+                   const targetId = `${y}`;
+                   const isSelected = historySeries.some(s => s.id === targetId);
+                   const isLoading = loadingStates[`${selectedHistoryAirport.code}-${y}`];
+                   const seriesColor = historySeries.find(s => s.id === targetId)?.color;
+
+                   return (
+                     <button
+                        key={y}
+                        onClick={() => toggleHistoryYear(y)}
+                        onMouseEnter={() => isSelected && setHoveredSeriesId(targetId)}
+                        onMouseLeave={() => setHoveredSeriesId(null)}
+                        disabled={isLoading}
+                        className={`
+                          relative group flex items-center space-x-2 pl-2 pr-4 py-2 rounded-full border transition-all duration-300
+                          ${isSelected 
+                            ? 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 border-transparent shadow-lg transform -translate-y-1' 
+                            : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-purple-400 dark:hover:border-purple-500'}
+                        `}
+                        style={isSelected ? { borderColor: seriesColor, boxShadow: `0 4px 12px -2px ${seriesColor}40` } : {}}
+                     >
+                        <div 
+                          className={`w-2.5 h-2.5 rounded-full transition-all ${isSelected ? 'scale-110' : 'scale-100 opacity-50'}`}
+                          style={{ backgroundColor: isSelected ? seriesColor : 'currentColor' }}
+                        />
+                        <span className="text-sm font-black font-mono tracking-tight">{y}</span>
+                        {isLoading && (
+                           <div className="absolute inset-0 bg-inherit rounded-full flex items-center justify-center opacity-80">
+                             <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                           </div>
+                        )}
+                     </button>
+                   );
+                })
+              )}
+           </div>
+        </div>
+      </div>
+
     </div>
   );
 };
