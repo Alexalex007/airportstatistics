@@ -247,7 +247,13 @@ const App: React.FC = () => {
 
   // If not entered yet, show Landing Page
   if (!hasEntered) {
-    return <LandingPage onEnter={() => setHasEntered(true)} />;
+    return (
+      <LandingPage 
+        onEnter={() => setHasEntered(true)} 
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+    );
   }
 
   return (
