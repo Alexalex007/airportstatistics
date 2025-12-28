@@ -5,9 +5,10 @@ interface HeaderProps {
   onOpenAddModal?: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  onHomeClick: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onOpenAddModal, theme, onToggleTheme }) => {
+const Header: React.FC<HeaderProps> = ({ onOpenAddModal, theme, onToggleTheme, onHomeClick }) => {
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -64,16 +65,20 @@ const Header: React.FC<HeaderProps> = ({ onOpenAddModal, theme, onToggleTheme })
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         
-        {/* Left: Branding */}
-        <div className="flex items-center gap-3 cursor-default select-none group">
+        {/* Left: Branding (Clickable Home Button) */}
+        <button 
+          onClick={onHomeClick}
+          className="flex items-center gap-3 cursor-pointer select-none group focus:outline-none hover:opacity-80 transition-opacity"
+          title="返回首頁"
+        >
           
           {/* Logo Icon */}
-          <div className={`p-2 rounded-xl shadow-lg transition-all duration-500 ${logoBoxClass}`}>
+          <div className={`p-2 rounded-xl shadow-lg transition-all duration-500 group-active:scale-95 ${logoBoxClass}`}>
             <Plane size={20} className="transform -rotate-45" />
           </div>
 
           {/* Text Container */}
-          <div className="flex flex-row items-baseline gap-2 overflow-hidden">
+          <div className="flex flex-row items-baseline gap-2 overflow-hidden text-left">
             <h1 className={`text-xl sm:text-2xl font-black tracking-tight transition-colors duration-300 whitespace-nowrap ${textColorClass}`}>
               SkyMetrics
             </h1>
@@ -81,7 +86,7 @@ const Header: React.FC<HeaderProps> = ({ onOpenAddModal, theme, onToggleTheme })
               Aviation Data
             </span>
           </div>
-        </div>
+        </button>
 
         {/* Right: Controls */}
         <div className="flex items-center gap-3">

@@ -4,6 +4,7 @@ import HeroSearch from './components/HeroSearch';
 import StatsChart from './components/StatsChart';
 import AddDataModal from './components/AddDataModal';
 import ComparisonModal from './components/ComparisonModal';
+import LandingPage from './components/LandingPage';
 import { fetchAirportStats } from './services/geminiService';
 import { SearchState, AirportData, AirportDefinition } from './types';
 import { AlertCircle, Users, Trash2, Edit, TrendingUp, TrendingDown, ArrowRight, BarChart2 } from 'lucide-react';
@@ -20,7 +21,8 @@ const DEFAULT_AIRPORTS: AirportDefinition[] = [
 const STORAGE_KEYS = {
   CUSTOM_AIRPORTS: 'skymetrics_custom_airports',
   DATA_PREFIX: 'skymetrics_data_',
-  THEME: 'skymetrics_theme'
+  THEME: 'skymetrics_theme',
+  HAS_VISITED: 'skymetrics_has_visited_session' // Session based or local storage based
 };
 
 // Helper to calculate total passengers from chart data
@@ -54,6 +56,9 @@ const calculateGrowth = (data: AirportData | null): string | null => {
 };
 
 const App: React.FC = () => {
+  // Landing Page State
+  const [hasEntered, setHasEntered] = useState(false);
+
   // Theme Management
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
@@ -190,8 +195,10 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    loadManualData(selectedYear);
-  }, [selectedYear, loadManualData]);
+    if (hasEntered) {
+      loadManualData(selectedYear);
+    }
+  }, [selectedYear, loadManualData, hasEntered]);
 
   const handleSaveCustomData = (code: string, name: string, data: AirportData, year: number) => {
     const isDefault = DEFAULT_AIRPORTS.some(ap => ap.code === code);
@@ -238,9 +245,19 @@ const App: React.FC = () => {
      setIsModalOpen(true);
   };
 
+  // If not entered yet, show Landing Page
+  if (!hasEntered) {
+    return <LandingPage onEnter={() => setHasEntered(true)} />;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-300">
-      <Header onOpenAddModal={openAddModal} theme={theme} onToggleTheme={toggleTheme} />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col transition-colors duration-300 animate-in fade-in duration-700">
+      <Header 
+        onOpenAddModal={openAddModal} 
+        theme={theme} 
+        onToggleTheme={toggleTheme} 
+        onHomeClick={() => setHasEntered(false)}
+      />
       
       <main className="flex-grow">
         <HeroSearch 
