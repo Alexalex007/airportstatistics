@@ -467,12 +467,19 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                   
                   {/* Horizontal Scrollable Container */}
                   <div className="flex overflow-x-auto no-scrollbar gap-3 px-1 pb-1">
-                      {activeSeries.map(series => {
+                      {/* Sort Active Series by Value (Descending) */}
+                      {[...activeSeries]
+                        .sort((a, b) => {
+                            const valA = getDisplayValue(a) || 0;
+                            const valB = getDisplayValue(b) || 0;
+                            return valB - valA;
+                        })
+                        .map(series => {
                           const val = getDisplayValue(series);
                           return (
                               <div 
                                 key={series.id} 
-                                className="flex-shrink-0 flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm min-w-[100px]"
+                                className="flex-shrink-0 flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm min-w-[100px] transition-all duration-300"
                                 style={{ borderLeft: `3px solid ${series.color}` }}
                               >
                                   <div className="flex flex-col">
