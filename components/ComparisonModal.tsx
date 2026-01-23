@@ -1,13 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, BarChart2, Plus, Calendar, Layers, TrendingUp, History, Plane } from 'lucide-react';
 import {
-  LineChart,
+  LineChart, // Keep for type reference if needed, but we use ComposedChart now
+  ComposedChart, // Switched to ComposedChart to support both Line and Area
   Line,
+  Area, // Added Area
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  defs, // Added for gradients
+  linearGradient, // Added for gradients
+  stop // Added for gradients
 } from 'recharts';
 import { AirportDefinition } from '../types';
 import { fetchAirportStats } from '../services/geminiService';
@@ -70,6 +75,74 @@ const CustomActiveDot = (props: any) => {
   );
 };
 
+// --- Custom Data Label Component (Enhanced for Visibility & No Overlap) ---
+// Props passed by Recharts + our custom props via currying
+const renderCustomLabel = (props: any, totalPoints: number, isHoveredSeries: boolean, seriesIndex: number) => {
+  const { x, y, value, stroke, index } = props;
+  
+  // 1. Basic Validation
+  if (!value || value === 0 || !x || !y) return null;
+
+  // 2. Visibility Logic
+  // - If this series is Hovered: Show ALL points.
+  // - If NO series is Hovered (default): Show ONLY the last point.
+  // - If ANOTHER series is Hovered: Show nothing (clean look).
+  const isLastPoint = index === totalPoints - 1;
+  const shouldShow = isHoveredSeries || isLastPoint;
+
+  if (!shouldShow) return null;
+
+  // 3. Format Value (5.23M / 450k)
+  let formattedValue = '';
+  if (value >= 1000000) {
+    formattedValue = (value / 1000000).toFixed(2) + 'M';
+  } else if (value >= 1000) {
+    formattedValue = (value / 1000).toFixed(0) + 'k';
+  } else {
+    formattedValue = value.toString();
+  }
+
+  // 4. Staggering Logic (To avoid overlapping labels on close lines)
+  // Even series go Up, Odd series go Down
+  const isTop = seriesIndex % 2 === 0;
+  const yOffset = isTop ? -18 : 18;
+  
+  // 5. Width estimation for background rect (approx 7px per char + padding)
+  const width = formattedValue.length * 7 + 8; 
+  const height = 18;
+
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      {/* Background Pill for Contrast (Matches Line Color) */}
+      <rect 
+        x={x - width / 2} 
+        y={y + yOffset - height / 2 - 1} 
+        width={width} 
+        height={height} 
+        rx={4} 
+        fill={stroke} 
+        opacity={0.9}
+        stroke="#fff"
+        strokeWidth={1}
+      />
+      
+      {/* Text Value (White for max readability on colored bg) */}
+      <text 
+        x={x} 
+        y={y + yOffset} 
+        dy={3} // Vertical center adjustment
+        fill="#ffffff" 
+        fontSize={10} 
+        fontWeight={700}
+        fontFamily="monospace"
+        textAnchor="middle"
+      >
+        {formattedValue}
+      </text>
+    </g>
+  );
+};
+
 const ComparisonModal: React.FC<ComparisonModalProps> = ({
   isOpen,
   onClose,
@@ -106,8 +179,6 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
 
   const fetchSeriesData = async (airport: AirportDefinition, reqYear: number): Promise<number[] | null> => {
     // CRITICAL FIX: Always check LocalStorage FIRST, even for standard airports.
-    // This ensures that if a user manually updates "HKG" for "2026", we use that data 
-    // instead of the empty array from the hardcoded service.
     
     const key = `${DATA_PREFIX}${airport.code}_${reqYear}`;
     const savedStr = localStorage.getItem(key);
@@ -128,15 +199,12 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
         const result = await fetchAirportStats(airport.code, reqYear);
         return result.chartData.map(d => d.passengers);
     } catch (e) {
-        // Only log warning if it's strictly a fetch error, 
-        // usually this means no data exists for that year in the hardcoded set.
+        // Only log warning if it's strictly a fetch error
         return null;
     }
   };
 
   // --- Real-time Data Synchronization ---
-  // This effect watches for changes in `results` (triggered when user saves data in AddDataModal)
-  // and re-fetches the data for all currently displayed series.
   useEffect(() => {
     const refreshActiveData = async () => {
         // 1. Refresh Compare Mode Series
@@ -173,7 +241,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     if (isOpen) {
         refreshActiveData();
     }
-  }, [results, allAirports, isOpen, selectedHistoryAirport]); // Dependencies trigger the refresh
+  }, [results, allAirports, isOpen, selectedHistoryAirport]); 
 
   // Handler: Toggle Airport in "Compare Mode"
   const toggleCompareAirport = async (airport: AirportDefinition) => {
@@ -437,11 +505,24 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
+              <ComposedChart
                 data={chartData}
                 margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
                 onMouseLeave={() => setHoveredSeriesId(null)}
               >
+                {/* Dynamic Gradients for Area Chart */}
+                <defs>
+                  {activeSeries.map(series => {
+                    const gradientId = `gradient-${series.id}`;
+                    return (
+                      <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={series.color} stopOpacity={0.4} />
+                        <stop offset="95%" stopColor={series.color} stopOpacity={0} />
+                      </linearGradient>
+                    );
+                  })}
+                </defs>
+
                 <CartesianGrid 
                   strokeDasharray="3 3" 
                   vertical={false} 
@@ -484,32 +565,62 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                   cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '4 4' }}
                 />
                 
-                {activeSeries.map((series) => {
+                {activeSeries.map((series, index) => {
                   const isHovered = hoveredSeriesId === series.id;
                   const isDimmed = hoveredSeriesId && hoveredSeriesId !== series.id;
-
-                  return (
-                    <Line
-                      key={series.id}
-                      type="monotone"
-                      dataKey={series.id}
-                      stroke={series.color}
-                      strokeWidth={isHovered ? 4 : 3}
-                      strokeOpacity={isDimmed ? 0.15 : 1}
-                      dot={false}
-                      activeDot={<CustomActiveDot />} 
-                      connectNulls
-                      animationDuration={800}
-                      onMouseEnter={() => setHoveredSeriesId(series.id)}
-                      onMouseLeave={() => setHoveredSeriesId(null)}
-                      style={{
-                        filter: isHovered ? `drop-shadow(0 0 8px ${series.color})` : 'none',
-                        transition: 'filter 0.3s ease'
-                      }}
-                    />
-                  );
+                  
+                  // Use Area for Cumulative, Line for Monthly
+                  if (viewMode === 'compare' && chartType === 'cumulative') {
+                     return (
+                        <Area
+                          key={series.id}
+                          type="monotone"
+                          dataKey={series.id}
+                          stroke={series.color}
+                          fill={`url(#gradient-${series.id})`}
+                          strokeWidth={isHovered ? 4 : 3}
+                          strokeOpacity={isDimmed ? 0.3 : 1}
+                          fillOpacity={isDimmed ? 0.1 : 1}
+                          dot={false}
+                          activeDot={<CustomActiveDot />} 
+                          // Pass function to label prop to access data per point
+                          label={(props) => renderCustomLabel(props, series.data.length, isHovered, index)}
+                          connectNulls
+                          animationDuration={800}
+                          onMouseEnter={() => setHoveredSeriesId(series.id)}
+                          onMouseLeave={() => setHoveredSeriesId(null)}
+                          style={{
+                            filter: isHovered ? `drop-shadow(0 0 8px ${series.color})` : 'none',
+                            transition: 'filter 0.3s ease'
+                          }}
+                        />
+                     );
+                  } else {
+                     return (
+                        <Line
+                          key={series.id}
+                          type="monotone"
+                          dataKey={series.id}
+                          stroke={series.color}
+                          strokeWidth={isHovered ? 4 : 3}
+                          strokeOpacity={isDimmed ? 0.15 : 1}
+                          dot={false}
+                          activeDot={<CustomActiveDot />}
+                          // Pass function to label prop to access data per point
+                          label={(props) => renderCustomLabel(props, series.data.length, isHovered, index)}
+                          connectNulls
+                          animationDuration={800}
+                          onMouseEnter={() => setHoveredSeriesId(series.id)}
+                          onMouseLeave={() => setHoveredSeriesId(null)}
+                          style={{
+                            filter: isHovered ? `drop-shadow(0 0 8px ${series.color})` : 'none',
+                            transition: 'filter 0.3s ease'
+                          }}
+                        />
+                     );
+                  }
                 })}
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           )}
         </div>
