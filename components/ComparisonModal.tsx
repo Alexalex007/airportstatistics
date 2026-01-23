@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, BarChart2, Plus, Calendar, Layers, TrendingUp, History, Plane, Hand, Activity, ChevronRight } from 'lucide-react';
+import { X, BarChart2, Plus, Calendar, Layers, TrendingUp, History, Plane, Hand, Activity, ChevronRight, BarChartBig, LineChart as LineChartIcon } from 'lucide-react';
 import {
   LineChart, 
   ComposedChart, 
   Line,
   Area, 
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -39,6 +40,7 @@ interface ChartSeries {
 // Mode Definitions
 type ViewMode = 'compare' | 'history';
 type ChartType = 'monthly' | 'cumulative';
+type ChartVisual = 'line' | 'bar'; // New visual mode
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -88,6 +90,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
   const [targetYear, setTargetYear] = useState<number>(year);
   const [compareSeries, setCompareSeries] = useState<ChartSeries[]>([]);
   const [chartType, setChartType] = useState<ChartType>('monthly');
+  const [chartVisual, setChartVisual] = useState<ChartVisual>('line'); // New state for visual type
 
   // 3. Historical Mode State
   const [selectedHistoryAirport, setSelectedHistoryAirport] = useState<AirportDefinition>(allAirports[0]);
@@ -432,23 +435,44 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                   )}
               </div>
 
-              {/* Chart Type Switcher */}
-              {viewMode === 'compare' && (
-                <div className="bg-white dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 flex text-[10px] font-bold">
+              {/* Chart Control Group (Type & Visual) */}
+              <div className="flex items-center gap-2">
+                  {/* Chart Type Switcher (Monthly/Cumulative) */}
+                  {viewMode === 'compare' && (
+                    <div className="bg-white dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 flex text-[10px] font-bold">
+                          <button
+                            onClick={() => setChartType('monthly')}
+                            className={`px-3 py-1 rounded-full transition-all ${chartType === 'monthly' ? 'bg-slate-100 dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-sm' : 'text-slate-500'}`}
+                          >
+                            單月
+                          </button>
+                          <button
+                            onClick={() => setChartType('cumulative')}
+                            className={`px-3 py-1 rounded-full transition-all ${chartType === 'cumulative' ? 'bg-slate-100 dark:bg-slate-700 text-emerald-600 dark:text-emerald-300 shadow-sm' : 'text-slate-500'}`}
+                          >
+                            累計
+                          </button>
+                    </div>
+                  )}
+
+                  {/* Chart Visual Toggle (Line/Bar) - SIZED TO MATCH */}
+                  <div className="bg-white dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 flex">
                       <button
-                        onClick={() => setChartType('monthly')}
-                        className={`px-3 py-1 rounded-full transition-all ${chartType === 'monthly' ? 'bg-slate-100 dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-sm' : 'text-slate-500'}`}
+                        onClick={() => setChartVisual('line')}
+                        className={`px-3 py-1 rounded-full transition-all flex items-center justify-center ${chartVisual === 'line' ? 'bg-slate-100 dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                        title="折線圖"
                       >
-                        單月
+                        <LineChartIcon size={14} />
                       </button>
                       <button
-                        onClick={() => setChartType('cumulative')}
-                        className={`px-3 py-1 rounded-full transition-all ${chartType === 'cumulative' ? 'bg-slate-100 dark:bg-slate-700 text-emerald-600 dark:text-emerald-300 shadow-sm' : 'text-slate-500'}`}
+                        onClick={() => setChartVisual('bar')}
+                        className={`px-3 py-1 rounded-full transition-all flex items-center justify-center ${chartVisual === 'bar' ? 'bg-slate-100 dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                        title="棒形圖"
                       >
-                        累計
+                        <BarChartBig size={14} />
                       </button>
-                </div>
-              )}
+                  </div>
+              </div>
            </div>
 
            {/* --- COMPACT DYNAMIC DATA STRIP --- */}
@@ -571,7 +595,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       width={40}
                     />
                     <Tooltip
-                      cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '4 4' }}
+                      cursor={{ fill: chartVisual === 'bar' ? '#0000000a' : 'transparent', stroke: '#94a3b8', strokeWidth: chartVisual === 'line' ? 1 : 0, strokeDasharray: '4 4' }}
                       content={() => null} // Disable default tooltip
                     />
                     
@@ -581,37 +605,54 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       
                       const commonProps = {
                          key: series.id,
-                         type: "monotone" as const, 
                          dataKey: series.id,
-                         stroke: series.color,
-                         strokeWidth: isHovered ? 4 : 3,
-                         strokeOpacity: isDimmed ? 0.15 : 1,
-                         activeDot: <CustomActiveDot />,
-                         dot: false,
-                         connectNulls: true,
                          animationDuration: 500,
                          onMouseEnter: () => setHoveredSeriesId(series.id),
-                         style: {
-                            filter: isHovered ? `drop-shadow(0 0 8px ${series.color})` : 'none',
-                            transition: 'filter 0.3s ease'
-                         }
                       };
 
-                      if (viewMode === 'compare' && chartType === 'cumulative') {
+                      if (chartVisual === 'bar') {
                          return (
-                            <Area
-                              {...commonProps}
-                              fill={`url(#gradient-${series.id})`}
-                              fillOpacity={isDimmed ? 0.1 : 0.8}
-                              strokeOpacity={isDimmed ? 0.3 : 1}
+                            <Bar
+                               {...commonProps}
+                               fill={series.color}
+                               fillOpacity={isDimmed ? 0.2 : 0.9}
+                               radius={[4, 4, 0, 0]}
+                               barSize={viewMode === 'compare' ? undefined : 24} // Let Recharts auto-size for compare, fixed for history single
                             />
                          );
                       } else {
-                         return (
-                            <Line
-                              {...commonProps}
-                            />
-                         );
+                         // Line or Area Visual
+                         const lineProps = {
+                            ...commonProps,
+                            type: "monotone" as const,
+                            stroke: series.color,
+                            strokeWidth: isHovered ? 4 : 3,
+                            strokeOpacity: isDimmed ? 0.15 : 1,
+                            activeDot: <CustomActiveDot />,
+                            dot: false,
+                            connectNulls: true,
+                            style: {
+                                filter: isHovered ? `drop-shadow(0 0 8px ${series.color})` : 'none',
+                                transition: 'filter 0.3s ease'
+                            }
+                         };
+
+                         if (viewMode === 'compare' && chartType === 'cumulative') {
+                            return (
+                                <Area
+                                  {...lineProps}
+                                  fill={`url(#gradient-${series.id})`}
+                                  fillOpacity={isDimmed ? 0.1 : 0.8}
+                                  strokeOpacity={isDimmed ? 0.3 : 1}
+                                />
+                            );
+                         } else {
+                            return (
+                                <Line
+                                  {...lineProps}
+                                />
+                            );
+                         }
                       }
                     })}
                   </ComposedChart>
