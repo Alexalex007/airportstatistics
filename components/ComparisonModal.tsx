@@ -1,18 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, BarChart2, Plus, Calendar, Layers, TrendingUp, History, Plane } from 'lucide-react';
+import { X, BarChart2, Plus, Calendar, Layers, TrendingUp, History, Plane, Hand, Activity, ChevronRight } from 'lucide-react';
 import {
-  LineChart, // Keep for type reference if needed, but we use ComposedChart now
-  ComposedChart, // Switched to ComposedChart to support both Line and Area
+  LineChart, 
+  ComposedChart, 
   Line,
-  Area, // Added Area
+  Area, 
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  defs, // Added for gradients
-  linearGradient, // Added for gradients
-  stop // Added for gradients
+  defs, 
+  linearGradient, 
+  stop 
 } from 'recharts';
 import { AirportDefinition } from '../types';
 import { fetchAirportStats } from '../services/geminiService';
@@ -40,6 +40,8 @@ interface ChartSeries {
 type ViewMode = 'compare' | 'history';
 type ChartType = 'monthly' | 'cumulative';
 
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 // Neon / Vivid Color Palette
 const COLORS = [
   '#3b82f6', // Blue 500
@@ -64,81 +66,8 @@ const CustomActiveDot = (props: any) => {
 
   return (
     <g>
-      <circle cx={cx} cy={cy} r={12} fill={stroke} fillOpacity={0.2} />
-      <circle cx={cx} cy={cy} r={6} fill="#fff" stroke={stroke} strokeWidth={2} />
-      <foreignObject x={cx - 10} y={cy - 10} width={20} height={20}>
-         <div style={{ color: stroke, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-            <Plane size={14} style={{ transform: 'rotate(-45deg)' }} />
-         </div>
-      </foreignObject>
-    </g>
-  );
-};
-
-// --- Custom Data Label Component (Enhanced for Visibility & No Overlap) ---
-// Props passed by Recharts + our custom props via currying
-const renderCustomLabel = (props: any, totalPoints: number, isHoveredSeries: boolean, seriesIndex: number) => {
-  const { x, y, value, stroke, index } = props;
-  
-  // 1. Basic Validation
-  if (!value || value === 0 || !x || !y) return null;
-
-  // 2. Visibility Logic
-  // - If this series is Hovered: Show ALL points.
-  // - If NO series is Hovered (default): Show ONLY the last point.
-  // - If ANOTHER series is Hovered: Show nothing (clean look).
-  const isLastPoint = index === totalPoints - 1;
-  const shouldShow = isHoveredSeries || isLastPoint;
-
-  if (!shouldShow) return null;
-
-  // 3. Format Value (5.23M / 450k)
-  let formattedValue = '';
-  if (value >= 1000000) {
-    formattedValue = (value / 1000000).toFixed(2) + 'M';
-  } else if (value >= 1000) {
-    formattedValue = (value / 1000).toFixed(0) + 'k';
-  } else {
-    formattedValue = value.toString();
-  }
-
-  // 4. Staggering Logic (To avoid overlapping labels on close lines)
-  // Even series go Up, Odd series go Down
-  const isTop = seriesIndex % 2 === 0;
-  const yOffset = isTop ? -18 : 18;
-  
-  // 5. Width estimation for background rect (approx 7px per char + padding)
-  const width = formattedValue.length * 7 + 8; 
-  const height = 18;
-
-  return (
-    <g style={{ pointerEvents: 'none' }}>
-      {/* Background Pill for Contrast (Matches Line Color) */}
-      <rect 
-        x={x - width / 2} 
-        y={y + yOffset - height / 2 - 1} 
-        width={width} 
-        height={height} 
-        rx={4} 
-        fill={stroke} 
-        opacity={0.9}
-        stroke="#fff"
-        strokeWidth={1}
-      />
-      
-      {/* Text Value (White for max readability on colored bg) */}
-      <text 
-        x={x} 
-        y={y + yOffset} 
-        dy={3} // Vertical center adjustment
-        fill="#ffffff" 
-        fontSize={10} 
-        fontWeight={700}
-        fontFamily="monospace"
-        textAnchor="middle"
-      >
-        {formattedValue}
-      </text>
+      <circle cx={cx} cy={cy} r={8} fill={stroke} fillOpacity={0.2} />
+      <circle cx={cx} cy={cy} r={5} fill="#fff" stroke={stroke} strokeWidth={2} />
     </g>
   );
 };
@@ -168,6 +97,10 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [hoveredSeriesId, setHoveredSeriesId] = useState<string | null>(null);
 
+  // 5. Focus State for Data Dashboard
+  // Default to 11 (December) or the latest valid index
+  const [focusedIndex, setFocusedIndex] = useState<number>(11); 
+
   // Helper: Assign color
   const getNextColor = (currentSeries: ChartSeries[]) => {
     const usedColors = currentSeries.map(s => s.color);
@@ -178,8 +111,6 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
   // --- Data Fetching Logic ---
 
   const fetchSeriesData = async (airport: AirportDefinition, reqYear: number): Promise<number[] | null> => {
-    // CRITICAL FIX: Always check LocalStorage FIRST, even for standard airports.
-    
     const key = `${DATA_PREFIX}${airport.code}_${reqYear}`;
     const savedStr = localStorage.getItem(key);
 
@@ -194,12 +125,10 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
         }
     }
 
-    // If no local data found, fallback to the standard service
     try {
         const result = await fetchAirportStats(airport.code, reqYear);
         return result.chartData.map(d => d.passengers);
     } catch (e) {
-        // Only log warning if it's strictly a fetch error
         return null;
     }
   };
@@ -211,11 +140,10 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
         if (compareSeries.length > 0) {
             const updatedCompareSeries = await Promise.all(compareSeries.map(async (series) => {
                 const airport = allAirports.find(a => a.code === series.code);
-                // Fallback to series data if airport def not found (e.g. custom)
                 const airportDef = airport || { code: series.code, name: series.name, isCustom: true };
                 
                 const data = await fetchSeriesData(airportDef, series.year);
-                if (!data) return series; // Keep old data if fetch fails completely
+                if (!data) return series; 
 
                 const total = data.reduce((a, b) => a + b, 0);
                 const peak = Math.max(...data);
@@ -242,6 +170,25 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
         refreshActiveData();
     }
   }, [results, allAirports, isOpen, selectedHistoryAirport]); 
+
+  // Decide which list to use based on mode
+  const activeSeries = viewMode === 'compare' ? compareSeries : historySeries;
+
+  // Auto-set focused index to the last month with data when series change
+  useEffect(() => {
+     let maxIndex = 0;
+     activeSeries.forEach(s => {
+         // Find the last index that has non-zero data
+         for(let i = 11; i >= 0; i--) {
+             if (s.data[i] > 0) {
+                 if (i > maxIndex) maxIndex = i;
+                 break;
+             }
+         }
+     });
+     setFocusedIndex(maxIndex);
+  }, [activeSeries, viewMode]);
+
 
   // Handler: Toggle Airport in "Compare Mode"
   const toggleCompareAirport = async (airport: AirportDefinition) => {
@@ -323,13 +270,8 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
 
   // --- Chart Data Transformation ---
 
-  // Decide which list to use based on mode
-  const activeSeries = viewMode === 'compare' ? compareSeries : historySeries;
-
   const chartData = useMemo(() => {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    
-    return months.map((month, index) => {
+    return MONTH_NAMES.map((month, index) => {
       const dataPoint: any = { name: month };
       
       activeSeries.forEach(series => {
@@ -366,20 +308,39 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     return num.toString();
   };
 
-  // Re-fetch when changing year in Compare Mode (optional enhancement: could clear or auto-refetch)
+  const formatValue = (num: number | null | undefined) => {
+      if (num === null || num === undefined || num === 0) return '-';
+      if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
+      if (num >= 1000) return `${(num / 1000).toFixed(0)}k`;
+      return num.toLocaleString();
+  };
+
+  // Re-fetch when changing year in Compare Mode
   useEffect(() => {
-     setCompareSeries([]); // Simple reset for now to avoid confusion
+     setCompareSeries([]); 
   }, [targetYear]);
+
+  // Calculate the value to display in the header based on focusedIndex & chartType
+  const getDisplayValue = (series: ChartSeries) => {
+      if (viewMode === 'compare' && chartType === 'cumulative') {
+          let sum = 0;
+          for(let i = 0; i <= focusedIndex; i++) {
+              if (series.data[i]) sum += series.data[i];
+          }
+          return sum;
+      } else {
+          return series.data[focusedIndex];
+      }
+  };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-slate-50 dark:bg-slate-950 animate-in fade-in duration-300">
       
-      {/* 1. Header & Mode Switcher */}
-      <div className="flex-shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-20">
+      {/* 1. Header (Fixed) */}
+      <div className="flex-shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-30">
         <div className="px-4 sm:px-6 py-3 flex items-center justify-between">
-            {/* Title & Mode Tabs */}
             <div className="flex items-center gap-4 sm:gap-8 overflow-x-auto no-scrollbar">
               <div className="flex items-center gap-2 flex-shrink-0">
                 <div className="bg-gradient-to-tr from-blue-600 to-cyan-500 p-1.5 rounded-lg text-white shadow-lg shadow-blue-500/20">
@@ -390,7 +351,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                 </h2>
               </div>
 
-              {/* View Mode Toggle (Segmented Control) */}
+              {/* View Mode Toggle */}
               <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                  <button
                    onClick={() => setViewMode('compare')}
@@ -426,76 +387,116 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
         </div>
       </div>
 
-      {/* 2. Chart Area (Center Fluid) */}
-      <div className="flex-1 relative bg-white dark:bg-slate-950 overflow-hidden flex flex-col">
+      {/* 2. Main Scrollable Content */}
+      <div className="flex-1 relative bg-white dark:bg-slate-950 flex flex-col overflow-hidden">
         
-        {/* Floating Controls Overlay (Top Center) */}
-        <div className="absolute top-4 left-0 right-0 z-10 flex flex-col items-center pointer-events-none gap-2">
+        {/* Controls Bar (Integrated into flow, not absolute overlay) */}
+        <div className="flex flex-col items-center gap-3 py-3 px-4 z-20 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 backdrop-blur-sm">
            
-           {/* Row 1: Main Control (Year for Compare / Airport for History) */}
-           <div className="pointer-events-auto shadow-lg rounded-full">
-              {viewMode === 'compare' ? (
-                // Compare Mode: Year Selector
-                <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md p-1 rounded-full border border-slate-200 dark:border-slate-700 flex space-x-1">
-                   {YEARS_RANGE.map(y => (
-                     <button
-                       key={y}
-                       onClick={() => setTargetYear(y)}
-                       className={`
-                         px-3 py-1 rounded-full text-xs font-bold transition-all
-                         ${targetYear === y 
-                           ? 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 shadow' 
-                           : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}
-                       `}
-                     >
-                       {y}
-                     </button>
-                   ))}
-                </div>
-              ) : (
-                // History Mode: Airport Selector (Simple Dropdown Simulation via horizontal scroll or select)
-                <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-4 py-1.5 rounded-full border border-purple-200 dark:border-purple-900/50 flex items-center gap-2">
-                   <span className="text-xs font-bold text-slate-400 uppercase">Subject:</span>
-                   <select 
-                      value={selectedHistoryAirport.code}
-                      onChange={(e) => {
-                        const ap = allAirports.find(a => a.code === e.target.value);
-                        if(ap) handleHistoryAirportChange(ap);
-                      }}
-                      className="bg-transparent text-sm font-black text-slate-800 dark:text-slate-100 outline-none cursor-pointer"
-                   >
-                      {allAirports.map(ap => (
-                        <option key={ap.code} value={ap.code}>{ap.code} - {ap.name}</option>
+           <div className="flex flex-wrap items-center justify-center gap-3 w-full">
+              {/* Year/Airport Selector */}
+              <div className="shadow-sm rounded-full">
+                  {viewMode === 'compare' ? (
+                    <div className="bg-white dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 flex space-x-1">
+                      {YEARS_RANGE.map(y => (
+                        <button
+                          key={y}
+                          onClick={() => setTargetYear(y)}
+                          className={`
+                            px-3 py-1 rounded-full text-xs font-bold transition-all
+                            ${targetYear === y 
+                              ? 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 shadow-sm' 
+                              : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}
+                          `}
+                        >
+                          {y}
+                        </button>
                       ))}
-                   </select>
+                    </div>
+                  ) : (
+                    <div className="bg-white dark:bg-slate-800 px-4 py-1.5 rounded-full border border-purple-200 dark:border-purple-900/50 flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-400 uppercase">Subject:</span>
+                      <select 
+                          value={selectedHistoryAirport.code}
+                          onChange={(e) => {
+                            const ap = allAirports.find(a => a.code === e.target.value);
+                            if(ap) handleHistoryAirportChange(ap);
+                          }}
+                          className="bg-transparent text-sm font-black text-slate-800 dark:text-slate-100 outline-none cursor-pointer"
+                      >
+                          {allAirports.map(ap => (
+                            <option key={ap.code} value={ap.code}>{ap.code} - {ap.name}</option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
+              </div>
+
+              {/* Chart Type Switcher */}
+              {viewMode === 'compare' && (
+                <div className="bg-white dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 flex text-[10px] font-bold">
+                      <button
+                        onClick={() => setChartType('monthly')}
+                        className={`px-3 py-1 rounded-full transition-all ${chartType === 'monthly' ? 'bg-slate-100 dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-sm' : 'text-slate-500'}`}
+                      >
+                        單月
+                      </button>
+                      <button
+                        onClick={() => setChartType('cumulative')}
+                        className={`px-3 py-1 rounded-full transition-all ${chartType === 'cumulative' ? 'bg-slate-100 dark:bg-slate-700 text-emerald-600 dark:text-emerald-300 shadow-sm' : 'text-slate-500'}`}
+                      >
+                        累計
+                      </button>
                 </div>
               )}
            </div>
 
-           {/* Row 2: Sub Control (Chart Type for Compare Mode Only) */}
-           {viewMode === 'compare' && (
-             <div className="pointer-events-auto">
-               <div className="bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-sm p-0.5 rounded-full border border-slate-200 dark:border-slate-700 flex text-[10px] font-bold">
-                  <button
-                    onClick={() => setChartType('monthly')}
-                    className={`px-3 py-1 rounded-full transition-all ${chartType === 'monthly' ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-300 shadow-sm' : 'text-slate-500'}`}
-                  >
-                    單月流量
-                  </button>
-                  <button
-                    onClick={() => setChartType('cumulative')}
-                    className={`px-3 py-1 rounded-full transition-all ${chartType === 'cumulative' ? 'bg-white dark:bg-slate-600 text-emerald-600 dark:text-emerald-300 shadow-sm' : 'text-slate-500'}`}
-                  >
-                    累計流量
-                  </button>
-               </div>
-             </div>
+           {/* --- COMPACT DYNAMIC DATA STRIP --- */}
+           {/* Only show if we have active series */}
+           {activeSeries.length > 0 && (
+              <div className="w-full animate-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-center justify-between px-2 mb-2">
+                     <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+                        <Activity size={12} className="text-blue-500" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">
+                            {MONTH_NAMES[focusedIndex]} {viewMode === 'compare' ? targetYear : ''} 
+                            {chartType === 'cumulative' && viewMode === 'compare' ? ' (累計)' : ''}
+                        </span>
+                     </div>
+                  </div>
+                  
+                  {/* Horizontal Scrollable Container */}
+                  <div className="flex overflow-x-auto no-scrollbar gap-3 px-1 pb-1">
+                      {activeSeries.map(series => {
+                          const val = getDisplayValue(series);
+                          return (
+                              <div 
+                                key={series.id} 
+                                className="flex-shrink-0 flex items-center bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm min-w-[100px]"
+                                style={{ borderLeft: `3px solid ${series.color}` }}
+                              >
+                                  <div className="flex flex-col">
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-0.5">
+                                          {viewMode === 'compare' ? series.code : series.year}
+                                      </span>
+                                      <span className={`text-sm font-black font-mono leading-none ${val ? 'text-slate-800 dark:text-slate-100' : 'text-slate-300 dark:text-slate-600'}`}>
+                                          {formatValue(val)}
+                                      </span>
+                                  </div>
+                              </div>
+                          )
+                      })}
+                      {/* Spacer for right padding in scroll view */}
+                      <div className="w-2 flex-shrink-0"></div>
+                  </div>
+              </div>
            )}
         </div>
 
-        <div className="flex-1 w-full h-full p-4 sm:p-6 pt-24 sm:pt-24">
+        {/* Chart Container (Fills remaining space) */}
+        <div className="flex-1 w-full min-h-0 relative">
           {activeSeries.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-700 select-none animate-in fade-in zoom-in duration-300">
+             <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-700 select-none animate-in fade-in zoom-in duration-300">
                <div className="w-20 h-20 rounded-full bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center mb-4">
                  <Plus size={24} className="opacity-50" />
                </div>
@@ -504,139 +505,125 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                </p>
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart
-                data={chartData}
-                margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
-                onMouseLeave={() => setHoveredSeriesId(null)}
-              >
-                {/* Dynamic Gradients for Area Chart */}
-                <defs>
-                  {activeSeries.map(series => {
-                    const gradientId = `gradient-${series.id}`;
-                    return (
-                      <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={series.color} stopOpacity={0.4} />
-                        <stop offset="95%" stopColor={series.color} stopOpacity={0} />
-                      </linearGradient>
-                    );
-                  })}
-                </defs>
+             <div className="absolute inset-0 pb-20 sm:pb-24 px-2 sm:px-6">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart
+                    data={chartData}
+                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                    onMouseMove={(state) => {
+                        if (state.isTooltipActive && state.activeTooltipIndex !== undefined) {
+                            setFocusedIndex(state.activeTooltipIndex);
+                        }
+                    }}
+                    onMouseLeave={() => {
+                         let maxIndex = 0;
+                         activeSeries.forEach(s => {
+                             for(let i = 11; i >= 0; i--) {
+                                 if (s.data[i] > 0) {
+                                     if (i > maxIndex) maxIndex = i;
+                                     break;
+                                 }
+                             }
+                         });
+                         setFocusedIndex(maxIndex);
+                         setHoveredSeriesId(null);
+                    }}
+                  >
+                    <defs>
+                      {activeSeries.map(series => {
+                        const gradientId = `gradient-${series.id}`;
+                        return (
+                          <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={series.color} stopOpacity={0.4} />
+                            <stop offset="95%" stopColor={series.color} stopOpacity={0} />
+                          </linearGradient>
+                        );
+                      })}
+                    </defs>
 
-                <CartesianGrid 
-                  strokeDasharray="3 3" 
-                  vertical={false} 
-                  stroke="#e2e8f0" 
-                  strokeOpacity={0.1}
-                  className="dark:stroke-slate-700" 
-                />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }}
-                  dy={15}
-                />
-                <YAxis 
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#94a3b8', fontSize: 11, fontFamily: 'monospace' }}
-                  tickFormatter={formatYAxis}
-                  width={40}
-                />
-                <Tooltip
-                  itemSorter={(item) => (item.value as number) * -1}
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)', 
-                    borderRadius: '12px', 
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    backdropFilter: 'blur(12px)',
-                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
-                    padding: '12px',
-                    color: '#f8fafc'
-                  }}
-                  itemStyle={{ fontSize: '13px', fontWeight: 600, padding: '2px 0' }}
-                  labelStyle={{ color: '#94a3b8', marginBottom: '8px', fontSize: '12px', fontWeight: 700 }}
-                  formatter={(value: number, name: string) => {
-                      const s = activeSeries.find(item => item.id === name);
-                      const label = s ? (viewMode === 'compare' ? s.code : `${s.year}年`) : name;
-                      return [new Intl.NumberFormat('zh-TW').format(value), label];
-                  }}
-                  cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '4 4' }}
-                />
-                
-                {activeSeries.map((series, index) => {
-                  const isHovered = hoveredSeriesId === series.id;
-                  const isDimmed = hoveredSeriesId && hoveredSeriesId !== series.id;
-                  
-                  // Use Area for Cumulative, Line for Monthly
-                  if (viewMode === 'compare' && chartType === 'cumulative') {
-                     return (
-                        <Area
-                          key={series.id}
-                          type="monotone"
-                          dataKey={series.id}
-                          stroke={series.color}
-                          fill={`url(#gradient-${series.id})`}
-                          strokeWidth={isHovered ? 4 : 3}
-                          strokeOpacity={isDimmed ? 0.3 : 1}
-                          fillOpacity={isDimmed ? 0.1 : 1}
-                          dot={false}
-                          activeDot={<CustomActiveDot />} 
-                          // Pass function to label prop to access data per point
-                          label={(props) => renderCustomLabel(props, series.data.length, isHovered, index)}
-                          connectNulls
-                          animationDuration={800}
-                          onMouseEnter={() => setHoveredSeriesId(series.id)}
-                          onMouseLeave={() => setHoveredSeriesId(null)}
-                          style={{
+                    <CartesianGrid 
+                      strokeDasharray="3 3" 
+                      vertical={false} 
+                      stroke="#e2e8f0" 
+                      strokeOpacity={0.1}
+                      className="dark:stroke-slate-700" 
+                    />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }}
+                      dy={15}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#94a3b8', fontSize: 11, fontFamily: 'monospace' }}
+                      tickFormatter={formatYAxis}
+                      width={40}
+                    />
+                    <Tooltip
+                      cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '4 4' }}
+                      content={() => null} // Disable default tooltip
+                    />
+                    
+                    {activeSeries.map((series) => {
+                      const isHovered = hoveredSeriesId === series.id;
+                      const isDimmed = hoveredSeriesId && hoveredSeriesId !== series.id;
+                      
+                      const commonProps = {
+                         key: series.id,
+                         type: "monotone" as const, 
+                         dataKey: series.id,
+                         stroke: series.color,
+                         strokeWidth: isHovered ? 4 : 3,
+                         strokeOpacity: isDimmed ? 0.15 : 1,
+                         activeDot: <CustomActiveDot />,
+                         dot: false,
+                         connectNulls: true,
+                         animationDuration: 500,
+                         onMouseEnter: () => setHoveredSeriesId(series.id),
+                         style: {
                             filter: isHovered ? `drop-shadow(0 0 8px ${series.color})` : 'none',
                             transition: 'filter 0.3s ease'
-                          }}
-                        />
-                     );
-                  } else {
-                     return (
-                        <Line
-                          key={series.id}
-                          type="monotone"
-                          dataKey={series.id}
-                          stroke={series.color}
-                          strokeWidth={isHovered ? 4 : 3}
-                          strokeOpacity={isDimmed ? 0.15 : 1}
-                          dot={false}
-                          activeDot={<CustomActiveDot />}
-                          // Pass function to label prop to access data per point
-                          label={(props) => renderCustomLabel(props, series.data.length, isHovered, index)}
-                          connectNulls
-                          animationDuration={800}
-                          onMouseEnter={() => setHoveredSeriesId(series.id)}
-                          onMouseLeave={() => setHoveredSeriesId(null)}
-                          style={{
-                            filter: isHovered ? `drop-shadow(0 0 8px ${series.color})` : 'none',
-                            transition: 'filter 0.3s ease'
-                          }}
-                        />
-                     );
-                  }
-                })}
-              </ComposedChart>
-            </ResponsiveContainer>
+                         }
+                      };
+
+                      if (viewMode === 'compare' && chartType === 'cumulative') {
+                         return (
+                            <Area
+                              {...commonProps}
+                              fill={`url(#gradient-${series.id})`}
+                              fillOpacity={isDimmed ? 0.1 : 0.8}
+                              strokeOpacity={isDimmed ? 0.3 : 1}
+                            />
+                         );
+                      } else {
+                         return (
+                            <Line
+                              {...commonProps}
+                            />
+                         );
+                      }
+                    })}
+                  </ComposedChart>
+                </ResponsiveContainer>
+             </div>
           )}
         </div>
       </div>
 
-      {/* 3. Controls Dock (Bottom Fixed) */}
+      {/* 3. Controls Dock (Fixed Bottom) */}
       <div className="flex-shrink-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 z-30 pb-safe">
         <div className="max-w-7xl mx-auto w-full px-4 py-4 overflow-x-auto custom-scrollbar">
            <div className="flex items-center space-x-3 min-w-max">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2 sticky left-0 bg-white/90 dark:bg-slate-900/90 px-2 z-10">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2 sticky left-0 bg-white/90 dark:bg-slate-900/90 px-2 z-10 flex items-center">
+                 <Plus size={14} className="mr-1" />
                 {viewMode === 'compare' ? 'Add Airport' : 'Add Year'}
               </span>
               
-              {/* Conditional Rendering based on View Mode */}
               {viewMode === 'compare' ? (
-                // MODE: Multi-Airport Chips
                 allAirports.map((airport) => {
                   const targetId = `${airport.code}-${targetYear}`;
                   const isSelected = compareSeries.some(s => s.id === targetId);
@@ -672,7 +659,6 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                   );
                 })
               ) : (
-                // MODE: Historical Year Chips
                 YEARS_RANGE.map((y) => {
                    const targetId = `${y}`;
                    const isSelected = historySeries.some(s => s.id === targetId);
