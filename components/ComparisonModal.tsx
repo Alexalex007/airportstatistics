@@ -354,13 +354,25 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                 </h2>
               </div>
 
-              {/* View Mode Toggle */}
-              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+              {/* View Mode Toggle (Glassmorphism & Sliding Pill) */}
+              <div className="relative flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700/50">
+                 {/* Sliding Pill */}
+                 <div 
+                    className={`
+                      absolute inset-y-1 w-[calc(50%-4px)] rounded-md shadow-sm transition-all duration-300 ease-out z-0
+                      bg-white dark:bg-slate-600 ring-1 ring-black/5 dark:ring-white/5
+                    `}
+                    style={{
+                      transform: viewMode === 'compare' ? 'translateX(0)' : 'translateX(100%)',
+                      left: viewMode === 'compare' ? '4px' : 'calc(4px - 100% + 100%)'
+                    }}
+                 />
+
                  <button
                    onClick={() => setViewMode('compare')}
-                   className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                   className={`relative z-10 flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors duration-300 ${
                      viewMode === 'compare' 
-                       ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                       ? 'text-blue-600 dark:text-blue-400' 
                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                    }`}
                  >
@@ -369,9 +381,9 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                  </button>
                  <button
                    onClick={() => setViewMode('history')}
-                   className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                   className={`relative z-10 flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors duration-300 ${
                      viewMode === 'history' 
-                       ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm' 
+                       ? 'text-purple-600 dark:text-purple-400' 
                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                    }`}
                  >
@@ -393,7 +405,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
       {/* 2. Main Scrollable Content */}
       <div className="flex-1 relative bg-white dark:bg-slate-950 flex flex-col overflow-hidden">
         
-        {/* Controls Bar (Integrated into flow, not absolute overlay) */}
+        {/* Controls Bar */}
         <div className="flex flex-col items-center gap-3 py-3 px-4 z-20 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 backdrop-blur-sm">
            
            <div className="flex flex-wrap items-center justify-center gap-3 w-full">
@@ -437,36 +449,58 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
 
               {/* Chart Control Group (Type & Visual) */}
               <div className="flex items-center gap-2">
-                  {/* Chart Type Switcher (Monthly/Cumulative) */}
+                  {/* Chart Type Switcher (Monthly/Cumulative) - Glass & Sliding */}
                   {viewMode === 'compare' && (
-                    <div className="bg-white dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 flex text-[10px] font-bold">
+                    <div className="relative flex items-center bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-full border border-white/20 dark:border-white/5 shadow-inner">
+                          {/* Pill */}
+                          <div 
+                             className={`
+                               absolute inset-y-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-out z-0
+                               bg-white dark:bg-slate-600 ring-1 ring-black/5 dark:ring-white/10
+                             `}
+                             style={{
+                               transform: chartType === 'monthly' ? 'translateX(0)' : 'translateX(100%)',
+                               left: chartType === 'monthly' ? '4px' : 'calc(4px - 100% + 100%)'
+                             }}
+                          />
                           <button
                             onClick={() => setChartType('monthly')}
-                            className={`px-3 py-1 rounded-full transition-all ${chartType === 'monthly' ? 'bg-slate-100 dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-sm' : 'text-slate-500'}`}
+                            className={`relative z-10 px-3 py-1 rounded-full text-[10px] font-bold transition-colors duration-300 ${chartType === 'monthly' ? 'text-blue-600 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400'}`}
                           >
                             單月
                           </button>
                           <button
                             onClick={() => setChartType('cumulative')}
-                            className={`px-3 py-1 rounded-full transition-all ${chartType === 'cumulative' ? 'bg-slate-100 dark:bg-slate-700 text-emerald-600 dark:text-emerald-300 shadow-sm' : 'text-slate-500'}`}
+                            className={`relative z-10 px-3 py-1 rounded-full text-[10px] font-bold transition-colors duration-300 ${chartType === 'cumulative' ? 'text-emerald-600 dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'}`}
                           >
                             累計
                           </button>
                     </div>
                   )}
 
-                  {/* Chart Visual Toggle (Line/Bar) - SIZED TO MATCH */}
-                  <div className="bg-white dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 flex">
+                  {/* Chart Visual Toggle (Line/Bar) - Glass & Sliding */}
+                  <div className="relative flex items-center bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-full border border-white/20 dark:border-white/5 shadow-inner">
+                      {/* Pill */}
+                      <div 
+                         className={`
+                           absolute inset-y-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-out z-0
+                           bg-white dark:bg-slate-600 ring-1 ring-black/5 dark:ring-white/10
+                         `}
+                         style={{
+                           transform: chartVisual === 'line' ? 'translateX(0)' : 'translateX(100%)',
+                           left: chartVisual === 'line' ? '4px' : 'calc(4px - 100% + 100%)'
+                         }}
+                      />
                       <button
                         onClick={() => setChartVisual('line')}
-                        className={`px-3 py-1 rounded-full transition-all flex items-center justify-center ${chartVisual === 'line' ? 'bg-slate-100 dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                        className={`relative z-10 px-3 py-1 rounded-full transition-colors duration-300 flex items-center justify-center ${chartVisual === 'line' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                         title="折線圖"
                       >
                         <LineChartIcon size={14} />
                       </button>
                       <button
                         onClick={() => setChartVisual('bar')}
-                        className={`px-3 py-1 rounded-full transition-all flex items-center justify-center ${chartVisual === 'bar' ? 'bg-slate-100 dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                        className={`relative z-10 px-3 py-1 rounded-full transition-colors duration-300 flex items-center justify-center ${chartVisual === 'bar' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                         title="棒形圖"
                       >
                         <BarChartBig size={14} />

@@ -1,16 +1,35 @@
 import React from 'react';
-import { Globe, Calendar, ChevronDown, BarChart2 } from 'lucide-react';
+import { Globe, Calendar, ChevronDown, BarChart2, Layers } from 'lucide-react';
 
 interface HeroSearchProps {
   onSearch: () => void;
   lastUpdated?: Date;
   selectedYear: number;
   onYearChange: (year: number) => void;
+  // New Props for Monthly View
+  viewMode: 'yearly' | 'monthly';
+  onViewModeChange: (mode: 'yearly' | 'monthly') => void;
+  selectedMonth: number;
+  onMonthChange: (monthIndex: number) => void;
 }
 
 const YEARS = [2023, 2024, 2025, 2026];
+const MONTHS = [
+  "01月 (Jan)", "02月 (Feb)", "03月 (Mar)", "04月 (Apr)", 
+  "05月 (May)", "06月 (Jun)", "07月 (Jul)", "08月 (Aug)", 
+  "09月 (Sep)", "10月 (Oct)", "11月 (Nov)", "12月 (Dec)"
+];
 
-const HeroSearch: React.FC<HeroSearchProps> = ({ onSearch, lastUpdated, selectedYear, onYearChange }) => {
+const HeroSearch: React.FC<HeroSearchProps> = ({ 
+  onSearch, 
+  lastUpdated, 
+  selectedYear, 
+  onYearChange,
+  viewMode,
+  onViewModeChange,
+  selectedMonth,
+  onMonthChange
+}) => {
   
   return (
     <div className="relative overflow-hidden transition-colors duration-500 bg-slate-50 dark:bg-slate-900 pb-10 pt-24 sm:pt-28 lg:pt-36 shadow-xl z-10">
@@ -35,14 +54,7 @@ const HeroSearch: React.FC<HeroSearchProps> = ({ onSearch, lastUpdated, selected
         <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-8 lg:gap-12">
           
           {/* Left Content: Title & Subtitle */}
-          <div className="w-full lg:w-2/3">
-            
-            {/* 
-                Title Redesign:
-                - text-[22px]: 手機版使用 22px，確保「亞太樞紐機場客運量數據看板」(12字) 能在 320px+ 寬度螢幕上一行顯示。
-                - sm:text-4xl / lg:text-5xl: 平板與電腦版字體放大，保持清晰度。
-                - whitespace-nowrap: 強制不換行。
-            */}
+          <div className="w-full lg:w-1/2">
             <h1 className="text-[22px] xs:text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white leading-tight tracking-tight mb-4 transition-colors duration-300 whitespace-nowrap overflow-visible">
               亞太樞紐機場
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 dark:from-cyan-300 dark:via-blue-300 dark:to-indigo-300 inline-block ml-1 sm:ml-2">
@@ -52,56 +64,110 @@ const HeroSearch: React.FC<HeroSearchProps> = ({ onSearch, lastUpdated, selected
             
             <div className="flex items-center mt-5 w-full max-w-lg lg:max-w-xl">
                <Globe size={20} className="text-blue-600 dark:text-cyan-500 mr-3 shrink-0"/>
-               
-               {/* Mobile: Flex layout with justify-between to ensure full line usage without cutoff */}
-               <div className="flex sm:hidden w-full justify-between items-center text-[13px] xs:text-sm font-bold font-mono text-slate-700 dark:text-slate-300">
-                  <span>HKG</span>
-                  <span>TPE</span>
-                  <span>SIN</span>
-                  <span>BKK</span>
-                  <span>ICN</span>
-                  <span>MNL</span>
-               </div>
-
-               {/* Desktop: Original elegant wide tracking with dots */}
                <span className="hidden sm:block text-sm sm:text-base font-bold tracking-widest font-mono text-slate-700 dark:text-slate-300 truncate">
                  HKG · TPE · SIN · BKK · ICN · MNL
                </span>
+               <div className="flex sm:hidden w-full justify-between items-center text-[13px] xs:text-sm font-bold font-mono text-slate-700 dark:text-slate-300">
+                  <span>HKG</span><span>TPE</span><span>SIN</span><span>BKK</span><span>ICN</span><span>MNL</span>
+               </div>
             </div>
           </div>
 
-          {/* Right Content: Year Selector Card */}
-          <div className="w-full lg:w-auto min-w-[280px] sm:min-w-[320px]">
+          {/* Right Content: Controls Card */}
+          <div className="w-full lg:w-auto min-w-[280px] sm:min-w-[400px]">
              <div className="
-                backdrop-blur-xl border p-5 rounded-2xl shadow-xl transition-all duration-300 group
+                backdrop-blur-xl border p-4 sm:p-5 rounded-2xl shadow-xl transition-all duration-300 group
                 bg-white/80 border-white/60 shadow-blue-100/50
                 dark:bg-slate-800/40 dark:border-white/10 dark:shadow-black/20 dark:hover:bg-slate-800/60
              ">
-                <div className="flex items-center justify-between mb-3">
-                   <span className="text-xs font-bold uppercase tracking-wider flex items-center text-slate-500 dark:text-slate-400">
-                     <Calendar size={14} className="mr-2 text-blue-600 dark:text-blue-400" />
-                     統計年份
-                   </span>
-                   <BarChart2 size={16} className="text-slate-400 dark:text-slate-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
+                {/* 1. View Mode Toggle (Glassmorphism & Sliding Pill) */}
+                <div className="relative flex items-center bg-slate-200/50 dark:bg-slate-900/50 p-1 rounded-xl mb-4 border border-white/20 dark:border-white/5 shadow-inner">
+                   
+                   {/* Sliding Pill Background */}
+                   <div 
+                      className={`
+                        absolute inset-y-1 w-[calc(50%-4px)] rounded-lg shadow-md transition-all duration-300 ease-out z-0
+                        bg-white dark:bg-slate-700 ring-1 ring-black/5 dark:ring-white/10
+                      `}
+                      style={{
+                        transform: viewMode === 'yearly' ? 'translateX(0)' : 'translateX(100%)',
+                        left: viewMode === 'yearly' ? '4px' : 'calc(4px - 100% + 100%)' // Fix for width calc
+                      }}
+                   />
+
+                   <button
+                     onClick={() => onViewModeChange('yearly')}
+                     className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-colors duration-300 ${
+                       viewMode === 'yearly' 
+                         ? 'text-blue-600 dark:text-blue-400' 
+                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                     }`}
+                   >
+                     <BarChart2 size={16} />
+                     年度趨勢
+                   </button>
+                   <button
+                     onClick={() => onViewModeChange('monthly')}
+                     className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-colors duration-300 ${
+                       viewMode === 'monthly' 
+                         ? 'text-purple-600 dark:text-purple-400' 
+                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                     }`}
+                   >
+                     <Layers size={16} />
+                     單月排名
+                   </button>
                 </div>
-                
-                <div className="relative">
-                  <select 
-                    value={selectedYear}
-                    onChange={(e) => onYearChange(Number(e.target.value))}
-                    className="
-                      w-full appearance-none pl-4 pr-10 py-3 rounded-xl border font-bold text-lg cursor-pointer transition-all outline-none shadow-sm
-                      bg-white border-slate-200 text-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 hover:border-blue-300
-                      dark:bg-slate-900/60 dark:border-slate-700 dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-400/20 dark:hover:border-slate-600
-                    "
-                  >
-                    {YEARS.map(year => (
-                      <option key={year} value={year}>{year} 年統計</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none text-blue-600 dark:text-blue-400">
-                    <ChevronDown size={20} />
-                  </div>
+
+                {/* 2. Selectors */}
+                <div className="flex gap-3">
+                   {/* Year Selector */}
+                   <div className="flex-1 relative">
+                      <div className="absolute top-2 left-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider z-10 pointer-events-none">
+                        統計年份
+                      </div>
+                      <select 
+                        value={selectedYear}
+                        onChange={(e) => onYearChange(Number(e.target.value))}
+                        className="
+                          w-full appearance-none pl-3 pr-8 pt-6 pb-2 rounded-xl border font-bold text-base cursor-pointer transition-all outline-none shadow-sm
+                          bg-white border-slate-200 text-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10
+                          dark:bg-slate-900/60 dark:border-slate-700 dark:text-white dark:focus:border-blue-400
+                        "
+                      >
+                        {YEARS.map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 bottom-3 pointer-events-none text-slate-400">
+                        <ChevronDown size={16} />
+                      </div>
+                   </div>
+
+                   {/* Month Selector (Only visible in Monthly mode) */}
+                   {viewMode === 'monthly' && (
+                     <div className="flex-1 relative animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="absolute top-2 left-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider z-10 pointer-events-none">
+                          選擇月份
+                        </div>
+                        <select 
+                          value={selectedMonth}
+                          onChange={(e) => onMonthChange(Number(e.target.value))}
+                          className="
+                            w-full appearance-none pl-3 pr-8 pt-6 pb-2 rounded-xl border font-bold text-base cursor-pointer transition-all outline-none shadow-sm
+                            bg-white border-slate-200 text-slate-800 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10
+                            dark:bg-slate-900/60 dark:border-slate-700 dark:text-white dark:focus:border-purple-400
+                          "
+                        >
+                          {MONTHS.map((month, idx) => (
+                            <option key={idx} value={idx}>{month}</option>
+                          ))}
+                        </select>
+                        <div className="absolute right-3 bottom-3 pointer-events-none text-slate-400">
+                          <ChevronDown size={16} />
+                        </div>
+                     </div>
+                   )}
                 </div>
                 
                 <div className="mt-3 flex items-center justify-end">
@@ -115,7 +181,6 @@ const HeroSearch: React.FC<HeroSearchProps> = ({ onSearch, lastUpdated, selected
         </div>
       </div>
       
-      {/* Bottom Fade Line - Light Mode uses a subtle shadow, Dark mode uses fade */}
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-300/50 to-transparent dark:via-slate-700/50"></div>
     </div>
   );
