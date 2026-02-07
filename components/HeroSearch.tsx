@@ -9,16 +9,9 @@ interface HeroSearchProps {
   // New Props for Monthly View
   viewMode: 'yearly' | 'monthly';
   onViewModeChange: (mode: 'yearly' | 'monthly') => void;
-  selectedMonth: number;
-  onMonthChange: (monthIndex: number) => void;
 }
 
 const YEARS = [2023, 2024, 2025, 2026];
-const MONTHS = [
-  "01月 (Jan)", "02月 (Feb)", "03月 (Mar)", "04月 (Apr)", 
-  "05月 (May)", "06月 (Jun)", "07月 (Jul)", "08月 (Aug)", 
-  "09月 (Sep)", "10月 (Oct)", "11月 (Nov)", "12月 (Dec)"
-];
 
 const HeroSearch: React.FC<HeroSearchProps> = ({ 
   onSearch, 
@@ -27,8 +20,6 @@ const HeroSearch: React.FC<HeroSearchProps> = ({
   onYearChange,
   viewMode,
   onViewModeChange,
-  selectedMonth,
-  onMonthChange
 }) => {
   
   return (
@@ -143,31 +134,6 @@ const HeroSearch: React.FC<HeroSearchProps> = ({
                         <ChevronDown size={16} />
                       </div>
                    </div>
-
-                   {/* Month Selector (Only visible in Monthly mode) */}
-                   {viewMode === 'monthly' && (
-                     <div className="flex-1 relative animate-in fade-in slide-in-from-right-4 duration-300">
-                        <div className="absolute top-2 left-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider z-10 pointer-events-none">
-                          選擇月份
-                        </div>
-                        <select 
-                          value={selectedMonth}
-                          onChange={(e) => onMonthChange(Number(e.target.value))}
-                          className="
-                            w-full appearance-none pl-3 pr-8 pt-6 pb-2 rounded-xl border font-bold text-base cursor-pointer transition-all outline-none shadow-sm
-                            bg-white border-slate-200 text-slate-800 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10
-                            dark:bg-slate-900/60 dark:border-slate-700 dark:text-white dark:focus:border-purple-400
-                          "
-                        >
-                          {MONTHS.map((month, idx) => (
-                            <option key={idx} value={idx}>{month}</option>
-                          ))}
-                        </select>
-                        <div className="absolute right-3 bottom-3 pointer-events-none text-slate-400">
-                          <ChevronDown size={16} />
-                        </div>
-                     </div>
-                   )}
                 </div>
                 
                 <div className="mt-3 flex items-center justify-end">

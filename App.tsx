@@ -8,7 +8,7 @@ import MonthlyComparison from './components/MonthlyComparison';
 import LandingPage from './components/LandingPage';
 import { fetchAirportStats } from './services/geminiService';
 import { SearchState, AirportData, AirportDefinition } from './types';
-import { AlertCircle, Users, Trash2, Edit, TrendingUp, TrendingDown, ArrowRight, BarChart2 } from 'lucide-react';
+import { AlertCircle, Users, Trash2, Edit, TrendingUp, TrendingDown, ArrowRight, BarChart2, ChevronDown, ChevronUp } from 'lucide-react';
 
 const DEFAULT_AIRPORTS: AirportDefinition[] = [
   { code: 'HKG', name: '香港國際機場' },
@@ -25,6 +25,12 @@ const STORAGE_KEYS = {
   THEME: 'skymetrics_theme',
   HAS_VISITED: 'skymetrics_has_visited_session' // Session based or local storage based
 };
+
+const MONTH_NAMES = [
+  "01月 (Jan)", "02月 (Feb)", "03月 (Mar)", "04月 (Apr)", 
+  "05月 (May)", "06月 (Jun)", "07月 (Jul)", "08月 (Aug)", 
+  "09月 (Sep)", "10月 (Oct)", "11月 (Nov)", "12月 (Dec)"
+];
 
 // Helper to calculate total passengers from chart data
 const calculateTotal = (data: AirportData | null): number => {
@@ -87,11 +93,15 @@ const App: React.FC = () => {
   }, [theme]);
 
   // --- Main Filter States ---
-  const [selectedYear, setSelectedYear] = useState<number>(2025);
+  // Default Year Updated to 2026
+  const [selectedYear, setSelectedYear] = useState<number>(2026);
   // View Mode: Yearly Overview vs Monthly Comparison
   const [viewMode, setViewMode] = useState<'yearly' | 'monthly'>('yearly');
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth()); // Default to current month index (0-11)
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth()); // Initial default
   
+  // Expanded Airports State (Array of codes)
+  const [expandedAirports, setExpandedAirports] = useState<string[]>([]);
+
   // Initialize custom airports from LocalStorage
   const [customAirports, setCustomAirports] = useState<AirportDefinition[]>(() => {
     try {
@@ -195,6 +205,32 @@ const App: React.FC = () => {
     setLastUpdated(new Date());
   }, [customAirports]);
 
+  // --- Auto-Detect Latest Month Logic ---
+  useEffect(() => {
+    // Only run this when data is loaded and not loading anymore
+    const allLoaded = Object.values(results).every((r: SearchState) => !r.isLoading);
+    if (!allLoaded) return;
+
+    let maxMonthIndex = -1;
+
+    Object.values(results).forEach((state: SearchState) => {
+      if (state.data && state.data.chartData) {
+        state.data.chartData.forEach((point, index) => {
+          if (point.passengers > 0) {
+            if (index > maxMonthIndex) {
+              maxMonthIndex = index;
+            }
+          }
+        });
+      }
+    });
+
+    if (maxMonthIndex !== -1) {
+      setSelectedMonth(maxMonthIndex);
+    }
+  }, [results, selectedYear]);
+
+
   const handleYearChange = (year: number) => {
     setSelectedYear(year);
   };
@@ -248,6 +284,16 @@ const App: React.FC = () => {
          data: currentResult?.data || null
      });
      setIsModalOpen(true);
+  };
+
+  const toggleAirportExpansion = (code: string) => {
+    setExpandedAirports(prev => {
+      if (prev.includes(code)) {
+        return prev.filter(c => c !== code);
+      } else {
+        return [...prev, code];
+      }
+    });
   };
 
   // --- Logic for Monthly Comparison View ---
@@ -304,35 +350,66 @@ const App: React.FC = () => {
           onYearChange={handleYearChange}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
-          selectedMonth={selectedMonth}
-          onMonthChange={setSelectedMonth}
         />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           
-          {/* Top Actions Block */}
-          <div className="mb-10 flex flex-col md:flex-row gap-4 animate-fade-in-up">
-            <button
-              onClick={() => setIsComparisonOpen(true)}
-              className="flex-1 group relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-1 shadow-lg transition-all hover:shadow-xl hover:scale-[1.005] active:scale-[0.99]"
-            >
-              <div className="relative flex items-center justify-between rounded-xl bg-white dark:bg-slate-900 px-6 py-4 transition-all group-hover:bg-opacity-90 dark:group-hover:bg-opacity-90 h-full">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                    <BarChart2 size={20} />
+          {/* Top Actions Block & Month Selector */}
+          <div className="mb-6 space-y-4">
+            {/* Comparison Lab Button */}
+            <div className="flex flex-col md:flex-row gap-4 animate-fade-in-up">
+              <button
+                onClick={() => setIsComparisonOpen(true)}
+                className="flex-1 group relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 p-1 shadow-lg transition-all hover:shadow-xl hover:scale-[1.005] active:scale-[0.99]"
+              >
+                <div className="relative flex items-center justify-between rounded-xl bg-white dark:bg-slate-900 px-6 py-4 transition-all group-hover:bg-opacity-90 dark:group-hover:bg-opacity-90 h-full">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                      <BarChart2 size={20} />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        多機場對比實驗室
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">自由選擇機場與年份進行自定義分析</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      多機場對比實驗室
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">自由選擇機場與年份進行自定義分析</p>
+                  <div className="text-slate-300 dark:text-slate-600 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all">
+                    <ArrowRight size={20} />
                   </div>
                 </div>
-                <div className="text-slate-300 dark:text-slate-600 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all">
-                  <ArrowRight size={20} />
+              </button>
+            </div>
+
+            {/* Horizontal Month Selector (Only for Monthly View) */}
+            {viewMode === 'monthly' && (
+              <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2">
+                  {MONTH_NAMES.map((m, idx) => {
+                     const isSelected = selectedMonth === idx;
+                     return (
+                       <button
+                         key={idx}
+                         onClick={() => setSelectedMonth(idx)}
+                         className={`
+                            relative flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300
+                            border
+                            ${isSelected 
+                              ? 'text-white border-purple-500 shadow-md transform scale-105' 
+                              : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700'}
+                         `}
+                       >
+                         {/* Background Layer for Selected */}
+                         {isSelected && (
+                           <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl -z-10"></div>
+                         )}
+                         {m}
+                       </button>
+                     )
+                  })}
                 </div>
               </div>
-            </button>
+            )}
           </div>
           
           <div className="flex items-center mb-6 justify-between">
@@ -348,11 +425,12 @@ const App: React.FC = () => {
 
           {/* --- VIEW MODE: YEARLY LIST --- */}
           {viewMode === 'yearly' && (
-            <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="space-y-4 animate-in fade-in duration-500">
               {allAirports.map((airport) => {
                 const state = results[airport.code];
                 if (!state && !airport.isCustom) return null;
 
+                const isExpanded = expandedAirports.includes(airport.code);
                 const totalPassengers = calculateTotal(state?.data || null);
                 const growthRate = calculateGrowth(state?.data || null);
 
@@ -380,8 +458,11 @@ const App: React.FC = () => {
                 return (
                   <div key={airport.code} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-all relative group hover:shadow-md dark:hover:shadow-slate-800/50">
                     
-                    {/* --- Airport Header --- */}
-                    <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 p-5">
+                    {/* --- Airport Header (Clickable for Expansion) --- */}
+                    <div 
+                       onClick={() => toggleAirportExpansion(airport.code)}
+                       className="bg-white dark:bg-slate-900 border-b border-transparent dark:border-transparent cursor-pointer p-5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    >
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         
                         {/* Left: Airport Identity */}
@@ -436,157 +517,162 @@ const App: React.FC = () => {
                               )
                             )}
 
-                            {/* Action Buttons */}
-                            <div className="flex items-center gap-2">
-                                <button 
-                                    onClick={() => openEditModal(airport)}
-                                    className="flex items-center justify-center p-2 sm:px-3 sm:py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-700 transition-all active:scale-95"
-                                    title="編輯/更新數據"
-                                >
-                                    <Edit size={16} className="sm:mr-1.5" />
-                                    <span className="hidden sm:inline text-sm font-medium">更新</span>
-                                </button>
-
-                                {airport.isCustom && (
-                                  <button 
-                                    onClick={() => removeCustomAirport(airport.code)}
-                                    className="flex items-center justify-center p-2 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-800 transition-all active:scale-95"
-                                    title="移除此機場"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                )}
+                            {/* Chevron Indicator */}
+                            <div className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''} text-slate-400`}>
+                               <ChevronDown size={20} />
                             </div>
                         </div>
-
                       </div>
                     </div>
                     {/* --- End Header --- */}
 
-                    {/* Content Body */}
-                    <div className="p-4 sm:p-6 bg-slate-50/30 dark:bg-slate-950/30">
-                      {state?.error && (
-                        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-r-md mb-4">
-                          <div className="flex">
-                            <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
-                            <p className="text-sm text-red-700 dark:text-red-300">{state.error}</p>
-                          </div>
+                    {/* Content Body (Conditionally Rendered) */}
+                    {isExpanded && (
+                      <div className="p-4 sm:p-6 bg-slate-50/30 dark:bg-slate-950/30 border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-2 fade-in duration-300">
+                        {/* Action Buttons (Moved inside expanded area) */}
+                        <div className="flex justify-end gap-2 mb-4">
+                             <button 
+                                 onClick={(e) => { e.stopPropagation(); openEditModal(airport); }}
+                                 className="flex items-center justify-center px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-700 transition-all text-xs font-bold"
+                             >
+                                 <Edit size={14} className="mr-1.5" />
+                                 編輯數據
+                             </button>
+
+                             {airport.isCustom && (
+                               <button 
+                                 onClick={(e) => { e.stopPropagation(); removeCustomAirport(airport.code); }}
+                                 className="flex items-center justify-center px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-800 transition-all text-xs font-bold"
+                               >
+                                 <Trash2 size={14} className="mr-1.5" />
+                                 移除
+                               </button>
+                             )}
                         </div>
-                      )}
 
-                      {state?.data ? (
-                        <div className="space-y-6">
-                            <StatsChart 
-                              data={state.data.chartData} 
-                              title="年度客運量統計"
-                              isDarkMode={theme === 'dark'}
-                            />
-                            
-                            {/* Mini Table */}
-                            {state.data.chartData.some(d => d.passengers > 0 || (d.comparison && d.comparison > 0)) && (
-                              <div className="overflow-hidden border rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
-                                  <div className="overflow-x-auto">
-                                    <table className="min-w-full text-sm text-left text-slate-500 dark:text-slate-400">
-                                      <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-100/80 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                                        <tr>
-                                          <th className="px-4 sm:px-6 py-3 whitespace-nowrap">月份</th>
-                                          <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">{selectedYear} (人次)</th>
-                                          <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap text-slate-400 dark:text-slate-500">{selectedYear - 1} (人次)</th>
-                                          <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">增減額</th>
-                                          <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">增長率</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                        {state.data.chartData.map((row, idx) => {
-                                            if ((!row.passengers || row.passengers === 0) && (!row.comparison || row.comparison === 0)) return null;
+                        {state?.error && (
+                          <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-r-md mb-4">
+                            <div className="flex">
+                              <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
+                              <p className="text-sm text-red-700 dark:text-red-300">{state.error}</p>
+                            </div>
+                          </div>
+                        )}
 
-                                            const hasCurrent = row.passengers > 0;
-                                            const hasPrev = row.comparison && row.comparison > 0;
-                                            
-                                            const growth = (hasCurrent && hasPrev) 
-                                                ? ((row.passengers - row.comparison!) / row.comparison! * 100).toFixed(1) 
-                                                : '-';
-                                            
-                                            // Calculate growth amount (No rounding as requested)
-                                            const growthAmount = (hasCurrent && hasPrev) 
-                                                ? (row.passengers - row.comparison!) 
-                                                : null;
-                                                
-                                            return (
-                                              <tr key={idx} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
-                                                <td className="px-4 sm:px-6 py-2.5 font-medium text-slate-900 dark:text-slate-200">{row.period}</td>
-                                                <td className="px-4 sm:px-6 py-2.5 text-right font-mono text-slate-700 dark:text-slate-300 font-medium">
-                                                    {row.passengers > 0 ? new Intl.NumberFormat('zh-TW').format(row.passengers) : <span className="text-slate-300 dark:text-slate-600">-</span>}
-                                                </td>
-                                                <td className="px-4 sm:px-6 py-2.5 text-right font-mono text-slate-400 dark:text-slate-500">
-                                                    {row.comparison ? new Intl.NumberFormat('zh-TW').format(row.comparison) : <span className="text-slate-200 dark:text-slate-700">-</span>}
-                                                </td>
-                                                <td className="px-4 sm:px-6 py-2.5 text-right font-mono">
-                                                  {growthAmount !== null ? (
-                                                    <span className={growthAmount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>
-                                                      {growthAmount > 0 ? '+' : ''}{new Intl.NumberFormat('zh-TW').format(growthAmount)}
+                        {state?.data ? (
+                          <div className="space-y-6">
+                              <StatsChart 
+                                data={state.data.chartData} 
+                                title="年度客運量統計"
+                                isDarkMode={theme === 'dark'}
+                              />
+                              
+                              {/* Mini Table */}
+                              {state.data.chartData.some(d => d.passengers > 0 || (d.comparison && d.comparison > 0)) && (
+                                <div className="overflow-hidden border rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
+                                    <div className="overflow-x-auto">
+                                      <table className="min-w-full text-sm text-left text-slate-500 dark:text-slate-400">
+                                        <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-100/80 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                                          <tr>
+                                            <th className="px-4 sm:px-6 py-3 whitespace-nowrap">月份</th>
+                                            <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">{selectedYear} (人次)</th>
+                                            <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap text-slate-400 dark:text-slate-500">{selectedYear - 1} (人次)</th>
+                                            <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">增減額</th>
+                                            <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">增長率</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                          {state.data.chartData.map((row, idx) => {
+                                              if ((!row.passengers || row.passengers === 0) && (!row.comparison || row.comparison === 0)) return null;
+
+                                              const hasCurrent = row.passengers > 0;
+                                              const hasPrev = row.comparison && row.comparison > 0;
+                                              
+                                              const growth = (hasCurrent && hasPrev) 
+                                                  ? ((row.passengers - row.comparison!) / row.comparison! * 100).toFixed(1) 
+                                                  : '-';
+                                              
+                                              // Calculate growth amount (No rounding as requested)
+                                              const growthAmount = (hasCurrent && hasPrev) 
+                                                  ? (row.passengers - row.comparison!) 
+                                                  : null;
+                                                  
+                                              return (
+                                                <tr key={idx} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
+                                                  <td className="px-4 sm:px-6 py-2.5 font-medium text-slate-900 dark:text-slate-200">{row.period}</td>
+                                                  <td className="px-4 sm:px-6 py-2.5 text-right font-mono text-slate-700 dark:text-slate-300 font-medium">
+                                                      {row.passengers > 0 ? new Intl.NumberFormat('zh-TW').format(row.passengers) : <span className="text-slate-300 dark:text-slate-600">-</span>}
+                                                  </td>
+                                                  <td className="px-4 sm:px-6 py-2.5 text-right font-mono text-slate-400 dark:text-slate-500">
+                                                      {row.comparison ? new Intl.NumberFormat('zh-TW').format(row.comparison) : <span className="text-slate-200 dark:text-slate-700">-</span>}
+                                                  </td>
+                                                  <td className="px-4 sm:px-6 py-2.5 text-right font-mono">
+                                                    {growthAmount !== null ? (
+                                                      <span className={growthAmount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>
+                                                        {growthAmount > 0 ? '+' : ''}{new Intl.NumberFormat('zh-TW').format(growthAmount)}
+                                                      </span>
+                                                    ) : <span className="text-slate-200 dark:text-slate-700">-</span>}
+                                                  </td>
+                                                  <td className="px-4 sm:px-6 py-2.5 text-right">
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                                                      growth === '-' ? 'text-slate-300 dark:text-slate-600' :
+                                                      parseFloat(growth) > 0 
+                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                    }`}>
+                                                      {growth !== '-' && parseFloat(growth) > 0 ? <TrendingUp size={10} className="mr-1"/> : null}
+                                                      {growth !== '-' ? (parseFloat(growth) > 0 ? '+' : '') + growth + '%' : '-'}
                                                     </span>
-                                                  ) : <span className="text-slate-200 dark:text-slate-700">-</span>}
-                                                </td>
-                                                <td className="px-4 sm:px-6 py-2.5 text-right">
-                                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                                                    growth === '-' ? 'text-slate-300 dark:text-slate-600' :
-                                                    parseFloat(growth) > 0 
-                                                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                                                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                  }`}>
-                                                    {growth !== '-' && parseFloat(growth) > 0 ? <TrendingUp size={10} className="mr-1"/> : null}
-                                                    {growth !== '-' ? (parseFloat(growth) > 0 ? '+' : '') + growth + '%' : '-'}
-                                                  </span>
-                                                </td>
-                                              </tr>
-                                            );
-                                        })}
-                                      </tbody>
-                                      <tfoot className="bg-slate-100 dark:bg-slate-800 font-bold border-t-2 border-slate-200 dark:border-slate-700">
-                                        <tr>
-                                          <td className="px-4 sm:px-6 py-3 text-slate-800 dark:text-slate-100">年度總計</td>
-                                          <td className="px-4 sm:px-6 py-3 text-right font-mono text-slate-800 dark:text-slate-100">
-                                            {new Intl.NumberFormat('zh-TW').format(footerCurrentSum)}
-                                          </td>
-                                          <td className="px-4 sm:px-6 py-3 text-right font-mono text-slate-400 dark:text-slate-500">
-                                            {footerPrevSum > 0 ? new Intl.NumberFormat('zh-TW').format(footerPrevSum) : '-'}
-                                          </td>
-                                          <td className="px-4 sm:px-6 py-3 text-right font-mono">
-                                            {hasFooterData && footerPrevSum > 0 ? (
-                                              <span className={footerDiff >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>
-                                                {footerDiff > 0 ? '+' : ''}{new Intl.NumberFormat('zh-TW').format(footerDiff)}
-                                              </span>
-                                            ) : <span className="text-slate-300 dark:text-slate-600">-</span>}
-                                          </td>
-                                          <td className="px-4 sm:px-6 py-3 text-right">
-                                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                                                    footerGrowthStr === '-' ? 'text-slate-300 dark:text-slate-600' :
-                                                    parseFloat(footerGrowthStr) > 0 
-                                                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                                                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                  }`}>
-                                                {footerGrowthStr !== '-' && parseFloat(footerGrowthStr) > 0 ? <TrendingUp size={10} className="mr-1"/> : null}
-                                                {footerGrowthStr !== '-' ? (parseFloat(footerGrowthStr) > 0 ? '+' : '') + footerGrowthStr + '%' : '-'}
-                                              </span>
-                                          </td>
-                                        </tr>
-                                      </tfoot>
-                                    </table>
-                                  </div>
-                              </div>
-                            )}
-                        </div>
-                      ) : (
-                        // Skeleton Loader
-                        state?.isLoading && (
-                          <div className="animate-pulse space-y-6">
-                            <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-xl w-full"></div>
-                            <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded-xl w-full"></div>
+                                                  </td>
+                                                </tr>
+                                              );
+                                          })}
+                                        </tbody>
+                                        <tfoot className="bg-slate-100 dark:bg-slate-800 font-bold border-t-2 border-slate-200 dark:border-slate-700">
+                                          <tr>
+                                            <td className="px-4 sm:px-6 py-3 text-slate-800 dark:text-slate-100">年度總計</td>
+                                            <td className="px-4 sm:px-6 py-3 text-right font-mono text-slate-800 dark:text-slate-100">
+                                              {new Intl.NumberFormat('zh-TW').format(footerCurrentSum)}
+                                            </td>
+                                            <td className="px-4 sm:px-6 py-3 text-right font-mono text-slate-400 dark:text-slate-500">
+                                              {footerPrevSum > 0 ? new Intl.NumberFormat('zh-TW').format(footerPrevSum) : '-'}
+                                            </td>
+                                            <td className="px-4 sm:px-6 py-3 text-right font-mono">
+                                              {hasFooterData && footerPrevSum > 0 ? (
+                                                <span className={footerDiff >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>
+                                                  {footerDiff > 0 ? '+' : ''}{new Intl.NumberFormat('zh-TW').format(footerDiff)}
+                                                </span>
+                                              ) : <span className="text-slate-300 dark:text-slate-600">-</span>}
+                                            </td>
+                                            <td className="px-4 sm:px-6 py-3 text-right">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                                                      footerGrowthStr === '-' ? 'text-slate-300 dark:text-slate-600' :
+                                                      parseFloat(footerGrowthStr) > 0 
+                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                    }`}>
+                                                  {footerGrowthStr !== '-' && parseFloat(footerGrowthStr) > 0 ? <TrendingUp size={10} className="mr-1"/> : null}
+                                                  {footerGrowthStr !== '-' ? (parseFloat(footerGrowthStr) > 0 ? '+' : '') + footerGrowthStr + '%' : '-'}
+                                                </span>
+                                            </td>
+                                          </tr>
+                                        </tfoot>
+                                      </table>
+                                    </div>
+                                </div>
+                              )}
                           </div>
-                        )
-                      )}
-                    </div>
+                        ) : (
+                          // Skeleton Loader
+                          state?.isLoading && (
+                            <div className="animate-pulse space-y-6">
+                              <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-xl w-full"></div>
+                              <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded-xl w-full"></div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
