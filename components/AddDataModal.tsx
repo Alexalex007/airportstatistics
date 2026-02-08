@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Calculator, ChevronDown } from 'lucide-react';
 import { AirportData, ChartDataPoint } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface AddDataModalProps {
   isOpen: boolean;
@@ -14,12 +15,13 @@ interface AddDataModalProps {
   } | null;
 }
 
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-// Updated range starting from 2025 as requested
 const YEARS_RANGE = [2025, 2026, 2027, 2028, 2029, 2030];
 const DATA_PREFIX = 'skymetrics_data_';
 
 const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, currentYear, initialData }) => {
+  const { t } = useLanguage();
+  const MONTH_NAMES_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [year, setYear] = useState(currentYear);
@@ -39,7 +41,7 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
         
         initialData.data.chartData.forEach(point => {
             const monthStr = point.period.split(' ')[1]; 
-            const index = MONTH_NAMES.indexOf(monthStr);
+            const index = MONTH_NAMES_EN.indexOf(monthStr);
             
             if (index !== -1) {
                 newPassengers[index] = point.passengers.toString();
@@ -64,7 +66,6 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
     }
   }, [isOpen, initialData, currentYear]);
 
-  // Helper to load data from LocalStorage for a specific year
   const loadSavedData = (targetCode: string, targetYear: number): string[] | null => {
     try {
       const key = `${DATA_PREFIX}${targetCode}_${targetYear}`;
@@ -77,7 +78,7 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
       if (savedData.chartData) {
         savedData.chartData.forEach(point => {
            const monthStr = point.period.split(' ')[1];
-           const index = MONTH_NAMES.indexOf(monthStr);
+           const index = MONTH_NAMES_EN.indexOf(monthStr);
            if (index !== -1) {
              loadedPassengers[index] = point.passengers.toString();
            }
@@ -93,21 +94,14 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
     const newYear = parseInt(e.target.value);
     const oldYear = year;
     
-    // 1. Prepare "New Current" (Data for the new selected year)
-    // Check if we already have saved data for this new year
     const savedCurrent = loadSavedData(code, newYear);
     const nextPassengers = savedCurrent || Array(12).fill('');
 
-    // 2. Prepare "New Comparison" (Data for newYear - 1)
     let nextComparisons = Array(12).fill('');
 
     if (newYear === oldYear + 1) {
-      // Smart Logic: If moving forward by 1 year (e.g., 2025 -> 2026),
-      // take the existing inputs from the screen (which were 2025 values)
-      // and move them to the comparison column.
       nextComparisons = [...passengers];
     } else {
-      // Otherwise (e.g. jumping random years), try to load saved data for (newYear - 1)
       const savedPrev = loadSavedData(code, newYear - 1);
       if (savedPrev) {
         nextComparisons = savedPrev;
@@ -138,7 +132,7 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code || !name) {
-      alert("請輸入機場代碼與名稱");
+      alert("Please enter airport code and name");
       return;
     }
 
@@ -147,7 +141,7 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
     let totalPrev = 0;
     let monthsCount = 0;
 
-    MONTH_NAMES.forEach((month, idx) => {
+    MONTH_NAMES_EN.forEach((month, idx) => {
       const pStr = passengers[idx];
       const cStr = comparisons[idx];
 
@@ -170,7 +164,7 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
     });
 
     if (monthsCount === 0) {
-      alert("請至少輸入一個月份的數據 (本期或同期皆可)");
+      alert("Please enter at least one month of data");
       return;
     }
 
@@ -180,13 +174,13 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
       growthRate = rate.toFixed(2);
     }
 
-    const summary = `**數據更新摘要**: \n此為用戶手動更新之 ${name} (${code}) ${year} 年數據。\n\n**統計結果**:\n- 統計月份數: ${monthsCount} 個月\n- ${year} 累計客運量: ${new Intl.NumberFormat('zh-TW').format(totalCurrent)} 人次\n- ${year-1} 同期累計: ${new Intl.NumberFormat('zh-TW').format(totalPrev)} 人次\n- 成長率: ${totalPrev > 0 ? (parseFloat(growthRate) > 0 ? '+' : '') + growthRate + '%' : '無法計算 (無同期數據)'}`;
+    const summary = `Manual update for ${name} (${code}) ${year}.`;
 
     const newAirportData: AirportData = {
       airportName: name,
       summary: summary,
       chartData: chartData,
-      sources: [{ title: "用戶手動輸入", uri: "#" }]
+      sources: [{ title: "User Input", uri: "#" }]
     };
 
     onSave(code.toUpperCase(), name, newAirportData, year);
@@ -195,36 +189,31 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
         onClick={onClose}
       ></div>
 
-      {/* Modal Content */}
       <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200 border border-slate-200 dark:border-slate-800">
         
-        {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-850">
           <div className="flex items-center text-slate-800 dark:text-slate-100">
             <div className="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-lg text-blue-600 dark:text-blue-400 mr-3">
               <Calculator size={20} />
             </div>
-            <h3 className="text-lg font-bold">{initialData ? '編輯/更新數據' : '新增客運量數據'}</h3>
+            <h3 className="text-lg font-bold">{initialData ? t('editData') : t('addData')}</h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
             <X size={20} />
           </button>
         </div>
 
-        {/* Form Body */}
         <div className="p-6 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900">
           <form id="dataForm" onSubmit={handleSubmit} className="space-y-6">
             
-            {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">機場代碼 (Code)</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('inputCode')}</label>
                 <input 
                   type="text" 
                   value={code} 
@@ -236,18 +225,18 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">機場名稱 (Name)</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('inputName')}</label>
                 <input 
                   type="text" 
                   value={name} 
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. 關西國際機場"
+                  placeholder="e.g. Kansai Int'l Airport"
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder-slate-400 dark:placeholder-slate-600"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">統計年份</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{t('inputYear')}</label>
                 <div className="relative">
                   <select 
                     value={year} 
@@ -266,17 +255,16 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
               </div>
             </div>
 
-            {/* Data Grid */}
             <div className="bg-slate-50 dark:bg-slate-850 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
               <div className="grid grid-cols-3 gap-4 mb-2 px-2">
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">月份</div>
-                <div className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider text-right">{year} 客運量</div>
-                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">{year - 1} 客運量 (選填)</div>
+                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t('month')}</div>
+                <div className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider text-right">{year}</div>
+                <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">{year - 1}</div>
               </div>
               
               <div className="space-y-2">
-                {MONTH_NAMES.map((month, idx) => (
-                  <div key={month} className="grid grid-cols-3 gap-4 items-center">
+                {t('months').map((month: string, idx: number) => (
+                  <div key={idx} className="grid grid-cols-3 gap-4 items-center">
                     <div className="text-sm font-medium text-slate-700 dark:text-slate-300 pl-2">{month}</div>
                     <input 
                       type="text" 
@@ -300,21 +288,19 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
             <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg flex items-start">
                <div className="text-blue-600 dark:text-blue-400 mr-2 mt-0.5">ℹ️</div>
                <p className="text-xs text-blue-700 dark:text-blue-300">
-                 系統將自動計算<strong>年度總和</strong>與<strong>同期成長率</strong>。若填寫「{year - 1} 客運量」，圖表將顯示對比柱狀圖。
-                 <br/><span className="opacity-80 mt-1 inline-block">提示：選擇下一年份 (如 2025 {'->'} 2026) 時，當前填寫的數據會自動移至同期比較欄位。</span>
+                 {t('autoCalc')}
                </p>
             </div>
 
           </form>
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex justify-end space-x-3">
           <button 
             onClick={onClose}
             className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-medium text-sm transition-colors"
           >
-            取消
+            {t('cancel')}
           </button>
           <button 
             form="dataForm"
@@ -322,7 +308,7 @@ const AddDataModal: React.FC<AddDataModalProps> = ({ isOpen, onClose, onSave, cu
             className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
           >
             <Save size={16} />
-            <span>保存並更新</span>
+            <span>{t('saveUpdate')}</span>
           </button>
         </div>
 

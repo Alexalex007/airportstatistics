@@ -8,7 +8,8 @@ import MonthlyComparison from './components/MonthlyComparison';
 import LandingPage from './components/LandingPage';
 import { fetchAirportStats } from './services/geminiService';
 import { SearchState, AirportData, AirportDefinition } from './types';
-import { AlertCircle, Users, Trash2, Edit, TrendingUp, TrendingDown, ArrowRight, BarChart2, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertCircle, Trash2, Edit, TrendingUp, TrendingDown, ArrowRight, BarChart2, ChevronDown } from 'lucide-react';
+import { useLanguage } from './contexts/LanguageContext';
 
 const DEFAULT_AIRPORTS: AirportDefinition[] = [
   { code: 'HKG', name: '香港國際機場' },
@@ -23,14 +24,7 @@ const STORAGE_KEYS = {
   CUSTOM_AIRPORTS: 'skymetrics_custom_airports',
   DATA_PREFIX: 'skymetrics_data_',
   THEME: 'skymetrics_theme',
-  HAS_VISITED: 'skymetrics_has_visited_session' // Session based or local storage based
 };
-
-const MONTH_NAMES = [
-  "01月 (Jan)", "02月 (Feb)", "03月 (Mar)", "04月 (Apr)", 
-  "05月 (May)", "06月 (Jun)", "07月 (Jul)", "08月 (Aug)", 
-  "09月 (Sep)", "10月 (Oct)", "11月 (Nov)", "12月 (Dec)"
-];
 
 // Helper to calculate total passengers from chart data
 const calculateTotal = (data: AirportData | null): number => {
@@ -63,7 +57,7 @@ const calculateGrowth = (data: AirportData | null): string | null => {
 };
 
 const App: React.FC = () => {
-  // Landing Page State
+  const { t, language } = useLanguage();
   const [hasEntered, setHasEntered] = useState(false);
 
   // Theme Management
@@ -92,14 +86,9 @@ const App: React.FC = () => {
     }
   }, [theme]);
 
-  // --- Main Filter States ---
-  // Default Year Updated to 2026
   const [selectedYear, setSelectedYear] = useState<number>(2026);
-  // View Mode: Yearly Overview vs Monthly Comparison
   const [viewMode, setViewMode] = useState<'yearly' | 'monthly'>('yearly');
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth()); // Initial default
-  
-  // Expanded Airports State (Array of codes)
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [expandedAirports, setExpandedAirports] = useState<string[]>([]);
 
   // Initialize custom airports from LocalStorage
@@ -112,14 +101,10 @@ const App: React.FC = () => {
     }
   });
   
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingData, setEditingData] = useState<{code: string, name: string, data: AirportData | null} | null>(null);
-  
-  // Comparison Modal State
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
 
-  // Lock body scroll when comparison modal is open
   useEffect(() => {
     if (isComparisonOpen) {
       document.body.style.overflow = 'hidden';
@@ -181,7 +166,7 @@ const App: React.FC = () => {
         
         if (isDefault) {
            const query = `${ap.code} ${ap.name}`;
-           const data = await fetchAirportStats(query, year);
+           const data = await fetchAirportStats(query, year, language);
            setResults(prev => ({
              ...prev,
              [ap.code]: { isLoading: false, error: null, data }
@@ -203,11 +188,10 @@ const App: React.FC = () => {
 
     await Promise.all(promises);
     setLastUpdated(new Date());
-  }, [customAirports]);
+  }, [customAirports, language]);
 
   // --- Auto-Detect Latest Month Logic ---
   useEffect(() => {
-    // Only run this when data is loaded and not loading anymore
     const allLoaded = Object.values(results).every((r: SearchState) => !r.isLoading);
     if (!allLoaded) return;
 
@@ -296,7 +280,6 @@ const App: React.FC = () => {
     });
   };
 
-  // --- Logic for Monthly Comparison View ---
   const getMonthlyComparisonData = () => {
     return allAirports.map(airport => {
       const state = results[airport.code];
@@ -305,7 +288,6 @@ const App: React.FC = () => {
       const point = state.data.chartData[selectedMonth];
       if (!point || point.passengers === 0) return null;
 
-      // Calculate single month YoY growth
       let growth = undefined;
       if (point.comparison && point.comparison > 0) {
          growth = ((point.passengers - point.comparison) / point.comparison) * 100;
@@ -322,7 +304,6 @@ const App: React.FC = () => {
     }).filter(item => item !== null) as any[];
   };
 
-  // If not entered yet, show Landing Page
   if (!hasEntered) {
     return (
       <LandingPage 
@@ -354,9 +335,7 @@ const App: React.FC = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           
-          {/* Top Actions Block & Month Selector */}
           <div className="mb-6 space-y-4">
-            {/* Comparison Lab Button */}
             <div className="flex flex-col md:flex-row gap-4 animate-fade-in-up">
               <button
                 onClick={() => setIsComparisonOpen(true)}
@@ -369,9 +348,9 @@ const App: React.FC = () => {
                     </div>
                     <div className="text-left">
                       <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        多機場對比實驗室
+                        {t('comparisonLab')}
                       </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">自由選擇機場與年份進行自定義分析</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{t('comparisonDesc')}</p>
                     </div>
                   </div>
                   <div className="text-slate-300 dark:text-slate-600 group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:translate-x-1 transition-all">
@@ -381,11 +360,10 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* Horizontal Month Selector (Only for Monthly View) */}
             {viewMode === 'monthly' && (
               <div className="animate-in slide-in-from-top-2 fade-in duration-300">
                 <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2">
-                  {MONTH_NAMES.map((m, idx) => {
+                  {t('months').map((m: string, idx: number) => {
                      const isSelected = selectedMonth === idx;
                      return (
                        <button
@@ -399,7 +377,6 @@ const App: React.FC = () => {
                               : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700'}
                          `}
                        >
-                         {/* Background Layer for Selected */}
                          {isSelected && (
                            <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl -z-10"></div>
                          )}
@@ -414,16 +391,15 @@ const App: React.FC = () => {
           
           <div className="flex items-center mb-6 justify-between">
              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 border-l-4 border-blue-600 pl-4">
-               {viewMode === 'yearly' ? `${selectedYear} 年統計概覽` : '單月數據排名'}
+               {viewMode === 'yearly' ? `${selectedYear} ${t('overview')}` : t('monthlyRanking')}
              </h2>
              {customAirports.length > 0 && (
                <span className="text-sm text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
-                 包含 {customAirports.length} 個自定義數據源
+                 {customAirports.length} {t('customData')}
                </span>
              )}
           </div>
 
-          {/* --- VIEW MODE: YEARLY LIST --- */}
           {viewMode === 'yearly' && (
             <div className="space-y-4 animate-in fade-in duration-500">
               {allAirports.map((airport) => {
@@ -434,7 +410,6 @@ const App: React.FC = () => {
                 const totalPassengers = calculateTotal(state?.data || null);
                 const growthRate = calculateGrowth(state?.data || null);
 
-                // Calculate footer statistics
                 let footerCurrentSum = 0;
                 let footerPrevSum = 0;
                 let hasFooterData = false;
@@ -449,7 +424,6 @@ const App: React.FC = () => {
                   });
                 }
 
-                // Exact calculation without rounding
                 const footerDiff = footerCurrentSum - footerPrevSum;
                 const footerGrowthStr = (hasFooterData && footerPrevSum > 0) 
                   ? ((footerCurrentSum - footerPrevSum) / footerPrevSum * 100).toFixed(1) 
@@ -458,48 +432,43 @@ const App: React.FC = () => {
                 return (
                   <div key={airport.code} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-all relative group hover:shadow-md dark:hover:shadow-slate-800/50">
                     
-                    {/* --- Airport Header (Clickable for Expansion) --- */}
                     <div 
                        onClick={() => toggleAirportExpansion(airport.code)}
                        className="bg-white dark:bg-slate-900 border-b border-transparent dark:border-transparent cursor-pointer p-5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
                     >
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         
-                        {/* Left: Airport Identity */}
                         <div className="flex items-center">
                           <div className={`flex items-center justify-center w-12 h-12 rounded-xl text-white font-bold text-lg shadow-sm mr-4 flex-shrink-0 ${airport.isCustom ? 'bg-gradient-to-br from-purple-500 to-indigo-600' : 'bg-gradient-to-br from-blue-500 to-cyan-600'}`}>
                             {airport.code}
                           </div>
                           <div>
                               <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 leading-tight">
-                                {airport.name}
+                                {state?.data?.airportName || airport.name}
                               </h2>
                               {airport.isCustom && (
                                 <span className="inline-block mt-1 text-[10px] font-medium text-purple-600 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 px-2 py-0.5 rounded border border-purple-100 dark:border-purple-800">
-                                  自定義數據
+                                  {t('customData')}
                                 </span>
                               )}
                           </div>
                         </div>
                         
-                        {/* Right: Stats & Actions */}
                         <div className="flex items-center justify-between w-full sm:w-auto sm:gap-6 mt-1 sm:mt-0 pl-[4rem] sm:pl-0">
                             
-                            {/* Total Count */}
                             {state?.isLoading ? (
-                              <span className="text-sm text-slate-400 dark:text-slate-500">載入中...</span>
+                              <span className="text-sm text-slate-400 dark:text-slate-500">{t('loading')}</span>
                             ) : (
                               state?.data ? (
                                 <div className="flex flex-col sm:items-end">
                                   <span className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mb-0.5">
-                                    {selectedYear} 總客運量
+                                    {selectedYear} {t('totalPassengers')}
                                   </span>
                                   <div className="flex flex-wrap items-baseline gap-2">
                                     <div className="flex items-center text-slate-800 dark:text-slate-100 font-bold text-lg sm:text-xl">
                                         {new Intl.NumberFormat('zh-TW').format(totalPassengers)}
                                     </div>
                                     
-                                    {/* Growth Badge */}
                                     {growthRate && (
                                       <div className={`flex items-center text-xs font-bold px-1.5 py-0.5 rounded ${
                                           parseFloat(growthRate) >= 0 
@@ -513,30 +482,26 @@ const App: React.FC = () => {
                                   </div>
                                 </div>
                               ) : (
-                                <span className="text-sm text-slate-400 dark:text-slate-500 italic">暫無 {selectedYear} 數據</span>
+                                <span className="text-sm text-slate-400 dark:text-slate-500 italic">{t('noData')} {selectedYear}</span>
                               )
                             )}
 
-                            {/* Chevron Indicator */}
                             <div className={`transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''} text-slate-400`}>
                                <ChevronDown size={20} />
                             </div>
                         </div>
                       </div>
                     </div>
-                    {/* --- End Header --- */}
 
-                    {/* Content Body (Conditionally Rendered) */}
                     {isExpanded && (
                       <div className="p-4 sm:p-6 bg-slate-50/30 dark:bg-slate-950/30 border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-2 fade-in duration-300">
-                        {/* Action Buttons (Moved inside expanded area) */}
                         <div className="flex justify-end gap-2 mb-4">
                              <button 
                                  onClick={(e) => { e.stopPropagation(); openEditModal(airport); }}
                                  className="flex items-center justify-center px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-700 transition-all text-xs font-bold"
                              >
                                  <Edit size={14} className="mr-1.5" />
-                                 編輯數據
+                                 {t('editData')}
                              </button>
 
                              {airport.isCustom && (
@@ -545,8 +510,8 @@ const App: React.FC = () => {
                                  className="flex items-center justify-center px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 hover:border-red-200 dark:hover:border-red-800 transition-all text-xs font-bold"
                                >
                                  <Trash2 size={14} className="mr-1.5" />
-                                 移除
-                               </button>
+                                 {t('remove')}
+                             </button>
                              )}
                         </div>
 
@@ -563,22 +528,21 @@ const App: React.FC = () => {
                           <div className="space-y-6">
                               <StatsChart 
                                 data={state.data.chartData} 
-                                title="年度客運量統計"
+                                title={t('yearlyTrend')}
                                 isDarkMode={theme === 'dark'}
                               />
                               
-                              {/* Mini Table */}
                               {state.data.chartData.some(d => d.passengers > 0 || (d.comparison && d.comparison > 0)) && (
                                 <div className="overflow-hidden border rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
                                     <div className="overflow-x-auto">
                                       <table className="min-w-full text-sm text-left text-slate-500 dark:text-slate-400">
                                         <thead className="text-xs text-slate-700 dark:text-slate-300 uppercase bg-slate-100/80 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                                           <tr>
-                                            <th className="px-4 sm:px-6 py-3 whitespace-nowrap">月份</th>
-                                            <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">{selectedYear} (人次)</th>
-                                            <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap text-slate-400 dark:text-slate-500">{selectedYear - 1} (人次)</th>
-                                            <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">增減額</th>
-                                            <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">增長率</th>
+                                            <th className="px-4 sm:px-6 py-3 whitespace-nowrap">{t('month')}</th>
+                                            <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">{selectedYear} ({t('passengers')})</th>
+                                            <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap text-slate-400 dark:text-slate-500">{selectedYear - 1} ({t('passengers')})</th>
+                                            <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">{t('growthAmount')}</th>
+                                            <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">{t('growth')}</th>
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -587,19 +551,12 @@ const App: React.FC = () => {
 
                                               const hasCurrent = row.passengers > 0;
                                               const hasPrev = row.comparison && row.comparison > 0;
-                                              
-                                              const growth = (hasCurrent && hasPrev) 
-                                                  ? ((row.passengers - row.comparison!) / row.comparison! * 100).toFixed(1) 
-                                                  : '-';
-                                              
-                                              // Calculate growth amount (No rounding as requested)
-                                              const growthAmount = (hasCurrent && hasPrev) 
-                                                  ? (row.passengers - row.comparison!) 
-                                                  : null;
+                                              const growth = (hasCurrent && hasPrev) ? ((row.passengers - row.comparison!) / row.comparison! * 100).toFixed(1) : '-';
+                                              const growthAmount = (hasCurrent && hasPrev) ? (row.passengers - row.comparison!) : null;
                                                   
                                               return (
                                                 <tr key={idx} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
-                                                  <td className="px-4 sm:px-6 py-2.5 font-medium text-slate-900 dark:text-slate-200">{row.period}</td>
+                                                  <td className="px-4 sm:px-6 py-2.5 font-medium text-slate-900 dark:text-slate-200">{t('months')[idx]}</td>
                                                   <td className="px-4 sm:px-6 py-2.5 text-right font-mono text-slate-700 dark:text-slate-300 font-medium">
                                                       {row.passengers > 0 ? new Intl.NumberFormat('zh-TW').format(row.passengers) : <span className="text-slate-300 dark:text-slate-600">-</span>}
                                                   </td>
@@ -630,7 +587,7 @@ const App: React.FC = () => {
                                         </tbody>
                                         <tfoot className="bg-slate-100 dark:bg-slate-800 font-bold border-t-2 border-slate-200 dark:border-slate-700">
                                           <tr>
-                                            <td className="px-4 sm:px-6 py-3 text-slate-800 dark:text-slate-100">年度總計</td>
+                                            <td className="px-4 sm:px-6 py-3 text-slate-800 dark:text-slate-100">{t('yearTotal')}</td>
                                             <td className="px-4 sm:px-6 py-3 text-right font-mono text-slate-800 dark:text-slate-100">
                                               {new Intl.NumberFormat('zh-TW').format(footerCurrentSum)}
                                             </td>
@@ -663,7 +620,6 @@ const App: React.FC = () => {
                               )}
                           </div>
                         ) : (
-                          // Skeleton Loader
                           state?.isLoading && (
                             <div className="animate-pulse space-y-6">
                               <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-xl w-full"></div>
@@ -679,7 +635,6 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* --- VIEW MODE: MONTHLY COMPARISON --- */}
           {viewMode === 'monthly' && (
              <MonthlyComparison 
                data={getMonthlyComparisonData()}
@@ -710,7 +665,7 @@ const App: React.FC = () => {
 
       <footer className="bg-slate-900 dark:bg-slate-950 text-slate-400 py-8 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <p>© 2024 SkyMetrics. 機場數據分析平台.</p>
+          <p>© 2024 SkyMetrics. {t('appSubtitle')}.</p>
         </div>
       </footer>
     </div>

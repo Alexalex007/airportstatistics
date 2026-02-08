@@ -10,6 +10,7 @@ import {
   Cell
 } from 'recharts';
 import { TrendingUp, TrendingDown, Trophy, Medal, Plane } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface MonthlyDataPoint {
   code: string;
@@ -27,21 +28,12 @@ interface MonthlyComparisonProps {
   isDarkMode: boolean;
 }
 
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const FULL_MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
 // Vivid Colors for ranking
 const RANK_COLORS = [
-  '#3b82f6', // 1st - Blue
-  '#06b6d4', // 2nd - Cyan
-  '#10b981', // 3rd - Emerald
-  '#8b5cf6', // 4th - Violet
-  '#f59e0b', // 5th - Amber
-  '#ec4899', // 6th - Pink
-  '#64748b', // Others - Slate
+  '#3b82f6', '#06b6d4', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#64748b'
 ];
 
-const CustomTooltip = ({ active, payload, label, isDarkMode }: any) => {
+const CustomTooltip = ({ active, payload, label, isDarkMode, t }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload as MonthlyDataPoint;
     return (
@@ -52,7 +44,7 @@ const CustomTooltip = ({ active, payload, label, isDarkMode }: any) => {
            <span className="text-xl font-black font-mono">
              {new Intl.NumberFormat('zh-TW').format(data.value)}
            </span>
-           <span className="text-xs">人次</span>
+           <span className="text-xs">{t('passengers')}</span>
         </div>
         {data.growth !== undefined && (
            <div className={`text-xs font-bold mt-1 ${data.growth >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
@@ -66,6 +58,8 @@ const CustomTooltip = ({ active, payload, label, isDarkMode }: any) => {
 };
 
 const MonthlyComparison: React.FC<MonthlyComparisonProps> = ({ data, year, monthIndex, isDarkMode }) => {
+  const { t } = useLanguage();
+  
   // Sort data descending
   const sortedData = [...data].sort((a, b) => b.value - a.value);
   const maxVal = sortedData.length > 0 ? sortedData[0].value : 0;
@@ -74,7 +68,7 @@ const MonthlyComparison: React.FC<MonthlyComparisonProps> = ({ data, year, month
     return (
       <div className="flex flex-col items-center justify-center py-20 text-slate-400">
         <Plane size={48} className="mb-4 opacity-20" />
-        <p>該月份暫無數據</p>
+        <p>{t('noData')}</p>
       </div>
     );
   }
@@ -87,11 +81,10 @@ const MonthlyComparison: React.FC<MonthlyComparisonProps> = ({ data, year, month
          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
                <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-3">
-                 <span className="text-blue-600 dark:text-blue-400">{year}年 {monthIndex + 1}月</span> 
-                 <span className="text-slate-400 dark:text-slate-600 text-lg font-medium">/ {FULL_MONTH_NAMES[monthIndex]}</span>
+                 <span className="text-blue-600 dark:text-blue-400">{year} {t('fullMonths')[monthIndex]}</span> 
                </h2>
                <p className="text-slate-500 dark:text-slate-400 mt-1">
-                 本月共統計 {data.length} 個機場，總客運量 <span className="font-mono font-bold text-slate-700 dark:text-slate-200">{new Intl.NumberFormat('zh-TW').format(data.reduce((a, b) => a + b.value, 0))}</span> 人次。
+                 {t('totalPassengers')}: <span className="font-mono font-bold text-slate-700 dark:text-slate-200">{new Intl.NumberFormat('zh-TW').format(data.reduce((a, b) => a + b.value, 0))}</span> {t('passengers')}
                </p>
             </div>
             
@@ -127,9 +120,9 @@ const MonthlyComparison: React.FC<MonthlyComparisonProps> = ({ data, year, month
                     axisLine={false} 
                     tickLine={false} 
                     tick={{ fill: isDarkMode ? '#94a3b8' : '#64748b', fontSize: 12, fontFamily: 'monospace' }}
-                    tickFormatter={(val) => (val / 10000).toFixed(0) + '萬'}
+                    tickFormatter={(val) => (val / 10000).toFixed(0) + 'w'}
                   />
-                  <Tooltip cursor={{ fill: isDarkMode ? '#ffffff10' : '#00000005' }} content={<CustomTooltip isDarkMode={isDarkMode} />} />
+                  <Tooltip cursor={{ fill: isDarkMode ? '#ffffff10' : '#00000005' }} content={<CustomTooltip isDarkMode={isDarkMode} t={t} />} />
                   <Bar dataKey="value" radius={[8, 8, 0, 0]} animationDuration={1000}>
                     {sortedData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={RANK_COLORS[index % RANK_COLORS.length]} />
@@ -196,7 +189,7 @@ const MonthlyComparison: React.FC<MonthlyComparisonProps> = ({ data, year, month
                      <div className="hidden sm:flex items-center gap-8 text-right">
                         {!isFirst && (
                            <div className="flex flex-col items-end">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">距第一名</span>
+                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{t('diffFromFirst')}</span>
                               <span className="text-sm font-mono font-medium text-slate-500">
                                  {new Intl.NumberFormat('zh-TW').format(diffFromFirst)} ({diffPercent.toFixed(1)}%)
                               </span>
@@ -204,7 +197,7 @@ const MonthlyComparison: React.FC<MonthlyComparisonProps> = ({ data, year, month
                         )}
 
                         <div className="flex flex-col items-end w-24">
-                           <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">YoY 成長</span>
+                           <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{t('growth')}</span>
                            {item.growth !== undefined ? (
                               <div className={`flex items-center font-bold ${item.growth >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                                  {item.growth >= 0 ? <TrendingUp size={14} className="mr-1"/> : <TrendingDown size={14} className="mr-1"/>}
@@ -216,7 +209,7 @@ const MonthlyComparison: React.FC<MonthlyComparisonProps> = ({ data, year, month
                         </div>
 
                         <div className="flex flex-col items-end w-32">
-                           <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">客運量 (人次)</span>
+                           <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{t('passengers')}</span>
                            <span className="text-xl font-black font-mono text-slate-800 dark:text-slate-100">
                               {new Intl.NumberFormat('zh-TW').format(item.value)}
                            </span>

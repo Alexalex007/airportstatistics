@@ -1,11 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, BarChart2, Plus, Calendar, Layers, TrendingUp, History, Plane, Hand, Activity, ChevronRight, BarChartBig, LineChart as LineChartIcon } from 'lucide-react';
 import {
-  LineChart, 
   ComposedChart, 
   Line,
   Area, 
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -17,6 +15,7 @@ import {
 } from 'recharts';
 import { AirportDefinition } from '../types';
 import { fetchAirportStats } from '../services/geminiService';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface ComparisonModalProps {
   isOpen: boolean;
@@ -27,45 +26,29 @@ interface ComparisonModalProps {
 }
 
 interface ChartSeries {
-  id: string; // Unique ID: "HKG-2024" or "2024" (in history mode)
+  id: string; 
   code: string;
   name: string;
   year: number;
-  data: number[]; // Array of 12 numbers
+  data: number[];
   total: number;
   peak: number;
   color: string;
 }
 
-// Mode Definitions
 type ViewMode = 'compare' | 'history';
 type ChartType = 'monthly' | 'cumulative';
-type ChartVisual = 'line' | 'bar'; // New visual mode
 
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-// Neon / Vivid Color Palette
 const COLORS = [
-  '#3b82f6', // Blue 500
-  '#ef4444', // Red 500
-  '#10b981', // Emerald 500
-  '#f59e0b', // Amber 500
-  '#d946ef', // Fuchsia 500
-  '#06b6d4', // Cyan 500
-  '#8b5cf6', // Violet 500
-  '#ec4899', // Pink 500
-  '#84cc16', // Lime 500
-  '#6366f1', // Indigo 500
+  '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#d946ef', '#06b6d4', '#8b5cf6', '#ec4899', '#84cc16', '#6366f1',
 ];
 
 const DATA_PREFIX = 'skymetrics_data_';
 const YEARS_RANGE = [2026, 2025, 2024, 2023]; 
 
-// --- Custom Active Dot Component ---
 const CustomActiveDot = (props: any) => {
   const { cx, cy, stroke } = props;
   if (!cx || !cy) return null;
-
   return (
     <g>
       <circle cx={cx} cy={cy} r={8} fill={stroke} fillOpacity={0.2} />
@@ -78,40 +61,28 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
   isOpen,
   onClose,
   allAirports,
-  results, // Added to dependencies to trigger updates
+  results,
   year = 2025
 }) => {
-  // --- State Management ---
+  const { t, language } = useLanguage();
   
-  // 1. View Mode
   const [viewMode, setViewMode] = useState<ViewMode>('compare');
-  
-  // 2. Multi-Airport Mode State
   const [targetYear, setTargetYear] = useState<number>(year);
   const [compareSeries, setCompareSeries] = useState<ChartSeries[]>([]);
   const [chartType, setChartType] = useState<ChartType>('monthly');
-  const [chartVisual, setChartVisual] = useState<ChartVisual>('line'); // New state for visual type
 
-  // 3. Historical Mode State
   const [selectedHistoryAirport, setSelectedHistoryAirport] = useState<AirportDefinition>(allAirports[0]);
   const [historySeries, setHistorySeries] = useState<ChartSeries[]>([]);
 
-  // 4. Shared UI State
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [hoveredSeriesId, setHoveredSeriesId] = useState<string | null>(null);
-
-  // 5. Focus State for Data Dashboard
-  // Default to 11 (December) or the latest valid index
   const [focusedIndex, setFocusedIndex] = useState<number>(11); 
 
-  // Helper: Assign color
   const getNextColor = (currentSeries: ChartSeries[]) => {
     const usedColors = currentSeries.map(s => s.color);
     const available = COLORS.find(c => !usedColors.includes(c));
     return available || COLORS[currentSeries.length % COLORS.length];
   };
-
-  // --- Data Fetching Logic ---
 
   const fetchSeriesData = async (airport: AirportDefinition, reqYear: number): Promise<number[] | null> => {
     const key = `${DATA_PREFIX}${airport.code}_${reqYear}`;
@@ -129,17 +100,15 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     }
 
     try {
-        const result = await fetchAirportStats(airport.code, reqYear);
+        const result = await fetchAirportStats(airport.code, reqYear, language);
         return result.chartData.map(d => d.passengers);
     } catch (e) {
         return null;
     }
   };
 
-  // --- Real-time Data Synchronization ---
   useEffect(() => {
     const refreshActiveData = async () => {
-        // 1. Refresh Compare Mode Series
         if (compareSeries.length > 0) {
             const updatedCompareSeries = await Promise.all(compareSeries.map(async (series) => {
                 const airport = allAirports.find(a => a.code === series.code);
@@ -155,7 +124,6 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
             setCompareSeries(updatedCompareSeries);
         }
 
-        // 2. Refresh History Mode Series
         if (historySeries.length > 0 && selectedHistoryAirport) {
             const updatedHistorySeries = await Promise.all(historySeries.map(async (series) => {
                 const data = await fetchSeriesData(selectedHistoryAirport, series.year);
@@ -172,16 +140,13 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     if (isOpen) {
         refreshActiveData();
     }
-  }, [results, allAirports, isOpen, selectedHistoryAirport]); 
+  }, [results, allAirports, isOpen, selectedHistoryAirport, language]); 
 
-  // Decide which list to use based on mode
   const activeSeries = viewMode === 'compare' ? compareSeries : historySeries;
 
-  // Auto-set focused index to the last month with data when series change
   useEffect(() => {
      let maxIndex = 0;
      activeSeries.forEach(s => {
-         // Find the last index that has non-zero data
          for(let i = 11; i >= 0; i--) {
              if (s.data[i] > 0) {
                  if (i > maxIndex) maxIndex = i;
@@ -193,17 +158,14 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
   }, [activeSeries, viewMode]);
 
 
-  // Handler: Toggle Airport in "Compare Mode"
   const toggleCompareAirport = async (airport: AirportDefinition) => {
     const targetId = `${airport.code}-${targetYear}`;
     
-    // Remove if exists
     if (compareSeries.some(s => s.id === targetId)) {
       setCompareSeries(prev => prev.filter(s => s.id !== targetId));
       return;
     }
 
-    // Add
     setLoadingStates(prev => ({ ...prev, [`${airport.code}-${targetYear}`]: true }));
     const dataArray = await fetchSeriesData(airport, targetYear);
     setLoadingStates(prev => ({ ...prev, [`${airport.code}-${targetYear}`]: false }));
@@ -227,17 +189,14 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     }]);
   };
 
-  // Handler: Toggle Year in "History Mode"
   const toggleHistoryYear = async (reqYear: number) => {
-    const targetId = `${reqYear}`; // ID is just the year in this mode
+    const targetId = `${reqYear}`; 
     
-    // Remove if exists
     if (historySeries.some(s => s.id === targetId)) {
       setHistorySeries(prev => prev.filter(s => s.id !== targetId));
       return;
     }
 
-    // Add
     setLoadingStates(prev => ({ ...prev, [`${selectedHistoryAirport.code}-${reqYear}`]: true }));
     const dataArray = await fetchSeriesData(selectedHistoryAirport, reqYear);
     setLoadingStates(prev => ({ ...prev, [`${selectedHistoryAirport.code}-${reqYear}`]: false }));
@@ -250,10 +209,9 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     const peak = Math.max(...dataArray);
 
     setHistorySeries(prev => {
-        // Sort series by year for better legend order
         const newSeries = [...prev, {
           id: targetId,
-          code: reqYear.toString(), // Display as Year
+          code: reqYear.toString(), 
           name: reqYear.toString(),
           year: reqYear,
           data: dataArray,
@@ -265,26 +223,21 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     });
   };
 
-  // Reset history series when changing airport in History Mode
   const handleHistoryAirportChange = (airport: AirportDefinition) => {
     setSelectedHistoryAirport(airport);
-    setHistorySeries([]); // Clear chart on airport switch
+    setHistorySeries([]); 
   };
 
-  // --- Chart Data Transformation ---
-
   const chartData = useMemo(() => {
-    return MONTH_NAMES.map((month, index) => {
+    return t('months').map((month: string, index: number) => {
       const dataPoint: any = { name: month };
       
       activeSeries.forEach(series => {
         let val: number | null = null;
 
         if (viewMode === 'compare' && chartType === 'cumulative') {
-          // Cumulative Logic
           let sum = 0;
           let hasData = false;
-          // Sum up to current index
           for (let i = 0; i <= index; i++) {
             const v = series.data[i];
             if (v > 0) {
@@ -292,10 +245,8 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
               hasData = true;
             }
           }
-          // Only show point if we have encountered data at least once. 
           val = sum > 0 ? sum : null;
         } else {
-          // Normal Monthly Logic
           val = (series.data[index] && series.data[index] > 0) ? series.data[index] : null;
         }
         
@@ -303,7 +254,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
       });
       return dataPoint;
     });
-  }, [activeSeries, viewMode, chartType]);
+  }, [activeSeries, viewMode, chartType, t]);
 
   const formatYAxis = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -318,12 +269,10 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
       return num.toLocaleString();
   };
 
-  // Re-fetch when changing year in Compare Mode
   useEffect(() => {
      setCompareSeries([]); 
   }, [targetYear]);
 
-  // Calculate the value to display in the header based on focusedIndex & chartType
   const getDisplayValue = (series: ChartSeries) => {
       if (viewMode === 'compare' && chartType === 'cumulative') {
           let sum = 0;
@@ -354,41 +303,41 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                 </h2>
               </div>
 
-              {/* View Mode Toggle (Glassmorphism & Sliding Pill) */}
-              <div className="relative flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700/50">
-                 {/* Sliding Pill */}
+              {/* View Mode Toggle (Grid Layout) */}
+              <div className="relative grid grid-cols-2 w-[220px] bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700/50">
                  <div 
                     className={`
-                      absolute inset-y-1 w-[calc(50%-4px)] rounded-md shadow-sm transition-all duration-300 ease-out z-0
+                      absolute inset-y-1 rounded-md shadow-sm transition-transform duration-300 ease-out z-0
                       bg-white dark:bg-slate-600 ring-1 ring-black/5 dark:ring-white/5
                     `}
                     style={{
-                      transform: viewMode === 'compare' ? 'translateX(0)' : 'translateX(100%)',
-                      left: viewMode === 'compare' ? '4px' : 'calc(4px - 100% + 100%)'
+                      left: '4px',
+                      width: 'calc((100% - 8px) / 2)',
+                      transform: `translateX(${viewMode === 'compare' ? 0 : 100}%)`
                     }}
                  />
 
                  <button
                    onClick={() => setViewMode('compare')}
-                   className={`relative z-10 flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors duration-300 ${
+                   className={`relative z-10 w-full flex items-center justify-center gap-2 py-1.5 rounded-md text-xs font-bold transition-colors duration-300 ${
                      viewMode === 'compare' 
                        ? 'text-blue-600 dark:text-blue-400' 
                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                    }`}
                  >
                    <Layers size={14} />
-                   <span className="whitespace-nowrap">多機場對比</span>
+                   <span className="whitespace-nowrap">{t('comparisonLab')}</span>
                  </button>
                  <button
                    onClick={() => setViewMode('history')}
-                   className={`relative z-10 flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors duration-300 ${
+                   className={`relative z-10 w-full flex items-center justify-center gap-2 py-1.5 rounded-md text-xs font-bold transition-colors duration-300 ${
                      viewMode === 'history' 
                        ? 'text-purple-600 dark:text-purple-400' 
                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                    }`}
                  >
                    <History size={14} />
-                   <span className="whitespace-nowrap">歷史趨勢</span>
+                   <span className="whitespace-nowrap">{t('feature2Title')}</span>
                  </button>
               </div>
             </div>
@@ -409,7 +358,6 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
         <div className="flex flex-col items-center gap-3 py-3 px-4 z-20 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 backdrop-blur-sm">
            
            <div className="flex flex-wrap items-center justify-center gap-3 w-full">
-              {/* Year/Airport Selector */}
               <div className="shadow-sm rounded-full">
                   {viewMode === 'compare' ? (
                     <div className="bg-white dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700 flex space-x-1">
@@ -430,7 +378,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                     </div>
                   ) : (
                     <div className="bg-white dark:bg-slate-800 px-4 py-1.5 rounded-full border border-purple-200 dark:border-purple-900/50 flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-400 uppercase">Subject:</span>
+                      <span className="text-xs font-bold text-slate-400 uppercase">{t('subject')}:</span>
                       <select 
                           value={selectedHistoryAirport.code}
                           onChange={(e) => {
@@ -447,85 +395,51 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                   )}
               </div>
 
-              {/* Chart Control Group (Type & Visual) */}
+              {/* Chart Control Group */}
               <div className="flex items-center gap-2">
-                  {/* Chart Type Switcher (Monthly/Cumulative) - Glass & Sliding */}
                   {viewMode === 'compare' && (
-                    <div className="relative flex items-center bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-full border border-white/20 dark:border-white/5 shadow-inner">
-                          {/* Pill */}
+                    <div className="relative grid grid-cols-2 w-[160px] bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-full border border-white/20 dark:border-white/5 shadow-inner">
                           <div 
                              className={`
-                               absolute inset-y-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-out z-0
+                               absolute inset-y-1 rounded-full shadow-sm transition-transform duration-300 ease-out z-0
                                bg-white dark:bg-slate-600 ring-1 ring-black/5 dark:ring-white/10
                              `}
                              style={{
-                               transform: chartType === 'monthly' ? 'translateX(0)' : 'translateX(100%)',
-                               left: chartType === 'monthly' ? '4px' : 'calc(4px - 100% + 100%)'
+                               left: '4px',
+                               width: 'calc((100% - 8px) / 2)',
+                               transform: `translateX(${chartType === 'monthly' ? 0 : 100}%)`
                              }}
                           />
                           <button
                             onClick={() => setChartType('monthly')}
-                            className={`relative z-10 px-3 py-1 rounded-full text-[10px] font-bold transition-colors duration-300 ${chartType === 'monthly' ? 'text-blue-600 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400'}`}
+                            className={`relative z-10 w-full text-center px-1 py-1 rounded-full text-[10px] font-bold transition-colors duration-300 ${chartType === 'monthly' ? 'text-blue-600 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400'}`}
                           >
-                            單月
+                            {t('chartMonthly')}
                           </button>
                           <button
                             onClick={() => setChartType('cumulative')}
-                            className={`relative z-10 px-3 py-1 rounded-full text-[10px] font-bold transition-colors duration-300 ${chartType === 'cumulative' ? 'text-emerald-600 dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'}`}
+                            className={`relative z-10 w-full text-center px-1 py-1 rounded-full text-[10px] font-bold transition-colors duration-300 ${chartType === 'cumulative' ? 'text-emerald-600 dark:text-emerald-300' : 'text-slate-500 dark:text-slate-400'}`}
                           >
-                            累計
+                            {t('chartCumulative')}
                           </button>
                     </div>
                   )}
-
-                  {/* Chart Visual Toggle (Line/Bar) - Glass & Sliding */}
-                  <div className="relative flex items-center bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-full border border-white/20 dark:border-white/5 shadow-inner">
-                      {/* Pill */}
-                      <div 
-                         className={`
-                           absolute inset-y-1 w-[calc(50%-4px)] rounded-full shadow-sm transition-all duration-300 ease-out z-0
-                           bg-white dark:bg-slate-600 ring-1 ring-black/5 dark:ring-white/10
-                         `}
-                         style={{
-                           transform: chartVisual === 'line' ? 'translateX(0)' : 'translateX(100%)',
-                           left: chartVisual === 'line' ? '4px' : 'calc(4px - 100% + 100%)'
-                         }}
-                      />
-                      <button
-                        onClick={() => setChartVisual('line')}
-                        className={`relative z-10 px-3 py-1 rounded-full transition-colors duration-300 flex items-center justify-center ${chartVisual === 'line' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                        title="折線圖"
-                      >
-                        <LineChartIcon size={14} />
-                      </button>
-                      <button
-                        onClick={() => setChartVisual('bar')}
-                        className={`relative z-10 px-3 py-1 rounded-full transition-colors duration-300 flex items-center justify-center ${chartVisual === 'bar' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                        title="棒形圖"
-                      >
-                        <BarChartBig size={14} />
-                      </button>
-                  </div>
               </div>
            </div>
 
-           {/* --- COMPACT DYNAMIC DATA STRIP --- */}
-           {/* Only show if we have active series */}
            {activeSeries.length > 0 && (
               <div className="w-full animate-in slide-in-from-top-2 duration-300">
                   <div className="flex items-center justify-between px-2 mb-2">
                      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                         <Activity size={12} className="text-blue-500" />
                         <span className="text-[10px] font-bold uppercase tracking-wider">
-                            {MONTH_NAMES[focusedIndex]} {viewMode === 'compare' ? targetYear : ''} 
-                            {chartType === 'cumulative' && viewMode === 'compare' ? ' (累計)' : ''}
+                            {t('months')[focusedIndex]} {viewMode === 'compare' ? targetYear : ''} 
+                            {chartType === 'cumulative' && viewMode === 'compare' ? ` (${t('chartCumulative')})` : ''}
                         </span>
                      </div>
                   </div>
                   
-                  {/* Horizontal Scrollable Container */}
                   <div className="flex overflow-x-auto no-scrollbar gap-3 px-1 pb-1">
-                      {/* Sort Active Series by Value (Descending) */}
                       {[...activeSeries]
                         .sort((a, b) => {
                             const valA = getDisplayValue(a) || 0;
@@ -551,14 +465,13 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                               </div>
                           )
                       })}
-                      {/* Spacer for right padding in scroll view */}
                       <div className="w-2 flex-shrink-0"></div>
                   </div>
               </div>
            )}
         </div>
 
-        {/* Chart Container (Fills remaining space) */}
+        {/* Chart Container */}
         <div className="flex-1 w-full min-h-0 relative">
           {activeSeries.length === 0 ? (
              <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-700 select-none animate-in fade-in zoom-in duration-300">
@@ -566,7 +479,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                  <Plus size={24} className="opacity-50" />
                </div>
                <p className="text-sm font-bold opacity-60">
-                 {viewMode === 'compare' ? '點擊下方選擇機場以對比' : '點擊下方選擇年份以查看趨勢'}
+                 {viewMode === 'compare' ? t('clickToCompare') : t('clickToHistory')}
                </p>
             </div>
           ) : (
@@ -629,8 +542,8 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       width={40}
                     />
                     <Tooltip
-                      cursor={{ fill: chartVisual === 'bar' ? '#0000000a' : 'transparent', stroke: '#94a3b8', strokeWidth: chartVisual === 'line' ? 1 : 0, strokeDasharray: '4 4' }}
-                      content={() => null} // Disable default tooltip
+                      cursor={{ fill: 'transparent', stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '4 4' }}
+                      content={() => null} 
                     />
                     
                     {activeSeries.map((series) => {
@@ -644,49 +557,36 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                          onMouseEnter: () => setHoveredSeriesId(series.id),
                       };
 
-                      if (chartVisual === 'bar') {
-                         return (
-                            <Bar
-                               {...commonProps}
-                               fill={series.color}
-                               fillOpacity={isDimmed ? 0.2 : 0.9}
-                               radius={[4, 4, 0, 0]}
-                               barSize={viewMode === 'compare' ? undefined : 24} // Let Recharts auto-size for compare, fixed for history single
-                            />
-                         );
-                      } else {
-                         // Line or Area Visual
-                         const lineProps = {
-                            ...commonProps,
-                            type: "monotone" as const,
-                            stroke: series.color,
-                            strokeWidth: isHovered ? 4 : 3,
-                            strokeOpacity: isDimmed ? 0.15 : 1,
-                            activeDot: <CustomActiveDot />,
-                            dot: false,
-                            connectNulls: true,
-                            style: {
-                                filter: isHovered ? `drop-shadow(0 0 8px ${series.color})` : 'none',
-                                transition: 'filter 0.3s ease'
-                            }
-                         };
+                      const lineProps = {
+                          ...commonProps,
+                          type: "monotone" as const,
+                          stroke: series.color,
+                          strokeWidth: isHovered ? 4 : 3,
+                          strokeOpacity: isDimmed ? 0.15 : 1,
+                          activeDot: <CustomActiveDot />,
+                          dot: false,
+                          connectNulls: true,
+                          style: {
+                              filter: isHovered ? `drop-shadow(0 0 8px ${series.color})` : 'none',
+                              transition: 'filter 0.3s ease'
+                          }
+                      };
 
-                         if (viewMode === 'compare' && chartType === 'cumulative') {
-                            return (
-                                <Area
-                                  {...lineProps}
-                                  fill={`url(#gradient-${series.id})`}
-                                  fillOpacity={isDimmed ? 0.1 : 0.8}
-                                  strokeOpacity={isDimmed ? 0.3 : 1}
-                                />
-                            );
-                         } else {
-                            return (
-                                <Line
-                                  {...lineProps}
-                                />
-                            );
-                         }
+                      if (viewMode === 'compare' && chartType === 'cumulative') {
+                          return (
+                              <Area
+                                {...lineProps}
+                                fill={`url(#gradient-${series.id})`}
+                                fillOpacity={isDimmed ? 0.1 : 0.8}
+                                strokeOpacity={isDimmed ? 0.3 : 1}
+                              />
+                          );
+                      } else {
+                          return (
+                              <Line
+                                {...lineProps}
+                              />
+                          );
                       }
                     })}
                   </ComposedChart>
@@ -702,7 +602,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
            <div className="flex items-center space-x-3 min-w-max">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-2 sticky left-0 bg-white/90 dark:bg-slate-900/90 px-2 z-10 flex items-center">
                  <Plus size={14} className="mr-1" />
-                {viewMode === 'compare' ? 'Add Airport' : 'Add Year'}
+                {viewMode === 'compare' ? t('addAirport') : t('addYear')}
               </span>
               
               {viewMode === 'compare' ? (

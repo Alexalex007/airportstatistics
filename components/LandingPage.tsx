@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plane, BarChart2, Globe, ArrowRight, Activity, Sun, Moon } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
+import { Language } from '../locales/translations';
 
 interface LandingPageProps {
   onEnter: () => void;
@@ -9,6 +11,7 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ onEnter, theme, onToggleTheme }) => {
   const [mounted, setMounted] = useState(false);
+  const { t, language, setLanguage } = useLanguage();
 
   useEffect(() => {
     setMounted(true);
@@ -32,6 +35,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, theme, onToggleTheme
     ? 'bg-gradient-to-r from-blue-700 via-indigo-600 to-slate-500'
     : 'bg-gradient-to-r from-white via-blue-100 to-slate-400';
 
+  // Language Switcher Logic
+  const langs: { code: Language; label: string }[] = [
+    { code: 'zh-TW', label: '繁體' },
+    { code: 'zh-CN', label: '简体' },
+    { code: 'en', label: 'EN' }
+  ];
+  const activeLangIndex = langs.findIndex(l => l.code === language);
+
   return (
     <div className={`fixed inset-0 z-[100] overflow-hidden transition-colors duration-700 ${isLight ? 'bg-slate-50' : 'bg-slate-950'}`}>
       
@@ -52,18 +63,39 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, theme, onToggleTheme
       </div>
 
       {/* --- Main Content Layout --- */}
-      {/* 
-          Mobile: justify-between (spreads items out vertically)
-          Tablet+: justify-center (centers items vertically with gap)
-      */}
       <div className="relative z-10 w-full h-[100dvh] flex flex-col items-center justify-between md:justify-center py-6 px-4 sm:px-8 max-w-7xl mx-auto md:gap-16">
         
-        {/* 1. Header Area: Theme Toggle */}
-        {/* 
-            Mobile: Relative flow, pushes content down.
-            Tablet+: Absolute positioning to top-right, removed from flex flow.
-        */}
-        <div className="w-full flex justify-end h-[50px] md:absolute md:top-8 md:right-8 md:h-auto z-50">
+        {/* 1. Header Area: Controls */}
+        <div className="w-full flex justify-between md:justify-end items-center h-[50px] md:absolute md:top-8 md:right-8 md:h-auto z-50 gap-4">
+             
+             {/* Glassmorphism Language Switcher (Grid Layout) */}
+             <div className={`relative grid grid-cols-3 p-1 rounded-full border backdrop-blur-xl transition-all duration-300 w-[180px] ${isLight ? 'bg-white/30 border-white/40 shadow-sm' : 'bg-slate-900/30 border-white/10 shadow-lg'}`}>
+                {/* Sliding Pill Background */}
+                <div 
+                  className={`absolute inset-y-1 rounded-full shadow-md transition-transform duration-500 ease-out z-0 ${isLight ? 'bg-white/90' : 'bg-slate-700/90'}`}
+                  style={{
+                    left: '4px',
+                    width: 'calc((100% - 8px) / 3)',
+                    transform: `translateX(${activeLangIndex * 100}%)`
+                  }}
+                />
+                
+                {langs.map((lang) => (
+                   <button
+                     key={lang.code}
+                     onClick={() => setLanguage(lang.code)}
+                     className={`
+                       relative z-10 w-full py-1.5 text-xs font-bold rounded-full transition-colors duration-300 text-center
+                       ${language === lang.code 
+                         ? (isLight ? 'text-slate-800' : 'text-white') 
+                         : (isLight ? 'text-slate-500 hover:text-slate-700' : 'text-slate-400 hover:text-slate-200')}
+                     `}
+                   >
+                     {lang.label}
+                   </button>
+                ))}
+             </div>
+
              <button 
                 onClick={onToggleTheme}
                 className={`
@@ -76,11 +108,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, theme, onToggleTheme
               </button>
         </div>
 
-        {/* 2. Hero Section (Logo + Titles) */}
-        {/* 
-            Mobile: flex-grow ensures it takes available space and centers itself.
-            Tablet+: flex-grow-0 allows it to sit tightly with the cards below.
-        */}
+        {/* 2. Hero Section */}
         <div className="flex-grow md:flex-grow-0 flex flex-col items-center justify-center text-center -mt-8 sm:-mt-0 md:mt-0">
             {/* Badge */}
             <div className={`mb-6 sm:mb-8 transition-all duration-1000 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
@@ -89,50 +117,45 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, theme, onToggleTheme
                   <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${badgeDot}`}></span>
                   <span className={`relative inline-flex rounded-full h-2 w-2 ${badgeDot}`}></span>
                 </span>
-                <span className="text-[10px] sm:text-xs font-mono tracking-widest uppercase font-bold">System Online</span>
+                <span className="text-[10px] sm:text-xs font-mono tracking-widest uppercase font-bold">{t('systemOnline')}</span>
               </div>
             </div>
 
             {/* Title */}
             <h1 className={`text-5xl sm:text-7xl md:text-8xl font-black tracking-tight mb-4 sm:mb-6 transition-all duration-1000 delay-100 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
               <span className={`block text-transparent bg-clip-text pb-2 transition-all duration-700 ${titleGradient}`}>
-                SkyMetrics
+                {t('landingTitle')}
               </span>
             </h1>
 
             {/* Subtitle */}
-            <p className={`text-base sm:text-xl md:text-2xl font-light leading-relaxed max-w-xs sm:max-w-2xl transition-all duration-1000 delay-200 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'} ${subTextColor}`}>
-              探索亞太樞紐機場的數據脈動。<br className="hidden sm:block" />
-              從即時客運量到跨年度趨勢，盡在指尖。
+            <p className={`text-base sm:text-xl md:text-2xl font-light leading-relaxed max-w-xs sm:max-w-2xl transition-all duration-1000 delay-200 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'} ${subTextColor} whitespace-pre-line`}>
+              {t('landingSubtitle')}
             </p>
         </div>
 
         {/* 3. Feature Grid & CTA */}
-        {/* 
-            Mobile: w-full, standard flow.
-            Tablet+: md:w-auto, centered.
-        */}
         <div className={`w-full max-w-md sm:max-w-4xl md:w-auto transition-all duration-1000 delay-300 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 mb-8 sm:mb-12">
                <FeatureCard 
                   isLight={isLight}
                   icon={<Globe size={20} />} 
-                  title="多機場監測" 
-                  desc="HKG, TPE, SIN, BKK, ICN, MNL"
+                  title={t('feature1Title')} 
+                  desc={t('feature1Desc')}
                   delay={0}
                 />
                 <FeatureCard 
                   isLight={isLight}
                   icon={<BarChart2 size={20} />} 
-                  title="趨勢比對" 
-                  desc="跨年份與跨機場數據可視化"
+                  title={t('feature2Title')} 
+                  desc={t('feature2Desc')}
                   delay={100}
                 />
                 <FeatureCard 
                   isLight={isLight}
                   icon={<Activity size={20} />} 
-                  title="即時洞察" 
-                  desc="官方數據客運量統計"
+                  title={t('feature3Title')} 
+                  desc={t('feature3Desc')}
                   delay={200}
                 />
             </div>
@@ -145,17 +168,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, theme, onToggleTheme
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out"></div>
                   <Plane className="transform group-hover:rotate-[-45deg] group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform duration-300" />
-                  <span>啟動數據中心</span>
+                  <span>{t('startBtn')}</span>
                   <ArrowRight className="group-hover:translate-x-1 transition-transform" />
                 </button>
             </div>
         </div>
 
         {/* 4. Footer */}
-        {/* 
-            Mobile: In flow.
-            Tablet+: Absolute positioning to bottom, removed from flex flow.
-        */}
         <div className={`transition-all duration-1000 delay-500 transform ${mounted ? 'opacity-100' : 'opacity-0'} md:absolute md:bottom-6`}>
            <p className={`text-[10px] sm:text-xs font-mono tracking-widest uppercase mb-2 ${isLight ? 'text-slate-400' : 'text-slate-600'}`}>
               Aviation Intelligence Dashboard v2.0

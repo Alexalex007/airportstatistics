@@ -3,20 +3,19 @@ import {
   ComposedChart,
   Bar,
   Area,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
   Legend,
   defs,
   linearGradient,
   stop
 } from 'recharts';
 import { ChartDataPoint } from '../types';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface StatsChartProps {
   data: ChartDataPoint[];
@@ -24,7 +23,7 @@ interface StatsChartProps {
   isDarkMode?: boolean;
 }
 
-const CustomTooltip = ({ active, payload, label, isDarkMode }: any) => {
+const CustomTooltip = ({ active, payload, label, isDarkMode, t }: any) => {
   if (active && payload && payload.length) {
     const currentData = payload.find((p: any) => p.dataKey === 'passengers');
     const prevData = payload.find((p: any) => p.dataKey === 'comparison');
@@ -58,7 +57,7 @@ const CustomTooltip = ({ active, payload, label, isDarkMode }: any) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${isDarkMode ? 'bg-cyan-400' : 'bg-blue-600'}`}></div>
-              <span className="text-xs font-medium opacity-80">本期數據</span>
+              <span className="text-xs font-medium opacity-80">{t('currentPeriod')}</span>
             </div>
             <span className="text-lg font-black font-mono">
               {new Intl.NumberFormat('zh-TW').format(currentVal)}
@@ -70,7 +69,7 @@ const CustomTooltip = ({ active, payload, label, isDarkMode }: any) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${isDarkMode ? 'bg-slate-300' : 'bg-slate-500'}`}></div>
-                <span className="text-xs font-medium opacity-80">去年同期</span>
+                <span className="text-xs font-medium opacity-80">{t('samePeriod')}</span>
               </div>
               <span className="text-sm font-bold font-mono opacity-80">
                 {new Intl.NumberFormat('zh-TW').format(prevVal)}
@@ -84,7 +83,7 @@ const CustomTooltip = ({ active, payload, label, isDarkMode }: any) => {
               mt-2 flex items-center justify-between pt-3 border-t border-dashed
               ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}
             `}>
-              <span className="text-xs font-medium opacity-70">YoY 成長率</span>
+              <span className="text-xs font-medium opacity-70">{t('yoyGrowth')}</span>
               <div className={`
                 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold
                 ${isPositive 
@@ -105,6 +104,8 @@ const CustomTooltip = ({ active, payload, label, isDarkMode }: any) => {
 };
 
 const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false }) => {
+  const { t } = useLanguage();
+
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(0)}K`;
@@ -113,23 +114,17 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
 
   const formatXAxis = (period: string) => {
     const parts = period.split(' ');
-    // On mobile, we might want even shorter labels, but with scrolling, "2024 Jan" is fine.
-    // Let's just return the Month to keep it clean if the year is obvious from context, 
-    // or return short form.
     return parts.length > 1 ? parts[1] : period;
   };
 
-  // --- Theme Colors ---
   const axisColor = isDarkMode ? '#94a3b8' : '#64748b'; 
   const gridColor = isDarkMode ? '#334155' : '#e2e8f0'; 
-  
-  // Legend Color
   const legendColor = isDarkMode ? '#cbd5e1' : '#475569';
 
   if (data.length === 0) {
     return (
       <div className="h-[300px] flex items-center justify-center bg-slate-50 dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700">
-        <p className="text-slate-400 dark:text-slate-500">暫無圖表數據</p>
+        <p className="text-slate-400 dark:text-slate-500">{t('noData')}</p>
       </div>
     );
   }
@@ -140,23 +135,9 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
         <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100 border-l-4 border-blue-500 pl-3">
           {title}
         </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 pl-4">
-          滑動圖表以查看更多月份數據
-        </p>
       </div>
       
-      {/* 
-        Scrollable Container for Mobile 
-        - overflow-x-auto: Enables horizontal scrolling
-        - custom-scrollbar: Uses the style defined in index.html
-      */}
       <div className="w-full overflow-x-auto pb-2 custom-scrollbar">
-        {/* 
-           Min-width constraint:
-           This forces the chart to be at least 600px wide. 
-           On desktop (>600px), it fits naturally. 
-           On mobile (<600px), it triggers the scroll.
-        */}
         <div className="h-[300px] sm:h-[350px] lg:h-[400px] min-w-[600px] sm:min-w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
@@ -165,19 +146,14 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
               barGap={0}
             >
               <defs>
-                {/* Light Mode Gradient */}
                 <linearGradient id="colorCurrentLight" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
                   <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.8}/>
                 </linearGradient>
-                
-                {/* Dark Mode Gradient (Neon) */}
                 <linearGradient id="colorCurrentDark" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#60a5fa" stopOpacity={1}/>
                   <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.8}/>
                 </linearGradient>
-
-                {/* Comparison Area Gradient (Enhanced Visibility) */}
                 <linearGradient id="colorPrev" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={isDarkMode ? '#cbd5e1' : '#64748b'} stopOpacity={0.25}/>
                   <stop offset="95%" stopColor={isDarkMode ? '#cbd5e1' : '#64748b'} stopOpacity={0}/>
@@ -198,7 +174,7 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
                 tickLine={false}
                 tick={{ fill: axisColor, fontSize: 12, fontWeight: 500 }}
                 dy={10}
-                interval={0} // Show all labels because we have scroll
+                interval={0} 
               />
               
               <YAxis 
@@ -210,7 +186,7 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
               />
               
               <Tooltip 
-                content={<CustomTooltip isDarkMode={isDarkMode} />} 
+                content={<CustomTooltip isDarkMode={isDarkMode} t={t} />} 
                 cursor={{ fill: isDarkMode ? '#ffffff' : '#000000', opacity: 0.05 }}
               />
               
@@ -222,13 +198,12 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
                 formatter={(value) => {
                   return (
                     <span style={{ color: legendColor, fontSize: '12px', fontWeight: 600, marginLeft: '4px' }}>
-                      {value === 'passengers' ? '本期數據' : '去年同期'}
+                      {value === 'passengers' ? t('currentPeriod') : t('samePeriod')}
                     </span>
                   )
                 }}
               />
               
-              {/* Previous Year: Area/Line Context - ENHANCED */}
               <Area
                 type="monotone"
                 dataKey="comparison"
@@ -241,7 +216,6 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
                 animationDuration={1500}
               />
 
-              {/* Current Year: Gradient Bar Focus */}
               <Bar 
                 dataKey="passengers" 
                 name="passengers" 
