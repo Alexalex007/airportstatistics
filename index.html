@@ -20,10 +20,19 @@
         }
       }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --font-sans: 'Noto Sans TC', sans-serif;
+      }
+      :root[lang="zh-CN"] {
+        --font-sans: 'Noto Sans SC', sans-serif;
+      }
+      :root[lang="en"] {
+        --font-sans: 'Inter', sans-serif;
+      }
       body {
-        font-family: 'Noto Sans TC', sans-serif;
+        font-family: var(--font-sans);
       }
       /* Custom Scrollbar for Dark Mode */
       .dark ::-webkit-scrollbar {
@@ -52,9 +61,11 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased transition-colors duration-300">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
-  </body>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>

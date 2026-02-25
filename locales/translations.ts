@@ -57,7 +57,13 @@ export const translations = {
     rank: "排名",
     diffFromFirst: "距第一名",
     months: ["01月 (Jan)", "02月 (Feb)", "03月 (Mar)", "04月 (Apr)", "05月 (May)", "06月 (Jun)", "07月 (Jul)", "08月 (Aug)", "09月 (Sep)", "10月 (Oct)", "11月 (Nov)", "12月 (Dec)"],
-    fullMonths: ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"]
+    fullMonths: ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"],
+    airport_HKG: "香港國際機場",
+    airport_TPE: "臺灣桃園國際機場",
+    airport_SIN: "新加坡樟宜國際機場",
+    airport_BKK: "曼谷素萬那普國際機場",
+    airport_ICN: "首爾仁川國際機場",
+    airport_MNL: "馬尼拉國際機場"
   },
   'zh-CN': {
     appTitle: "SkyMetrics",
@@ -115,7 +121,13 @@ export const translations = {
     rank: "排名",
     diffFromFirst: "距第一名",
     months: ["01月 (Jan)", "02月 (Feb)", "03月 (Mar)", "04月 (Apr)", "05月 (May)", "06月 (Jun)", "07月 (Jul)", "08月 (Aug)", "09月 (Sep)", "10月 (Oct)", "11月 (Nov)", "12月 (Dec)"],
-    fullMonths: ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"]
+    fullMonths: ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"],
+    airport_HKG: "香港国际机场",
+    airport_TPE: "台湾桃园国际机场",
+    airport_SIN: "新加坡樟宜国际机场",
+    airport_BKK: "曼谷素万那普国际机场",
+    airport_ICN: "首尔仁川国际机场",
+    airport_MNL: "马尼拉国际机场"
   },
   'en': {
     appTitle: "SkyMetrics",
@@ -173,6 +185,12 @@ export const translations = {
     rank: "Rank",
     diffFromFirst: "Diff from 1st",
     months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-    fullMonths: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    fullMonths: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    airport_HKG: "Hong Kong Int'l Airport",
+    airport_TPE: "Taoyuan Int'l Airport",
+    airport_SIN: "Changi Airport",
+    airport_BKK: "Suvarnabhumi Airport",
+    airport_ICN: "Incheon Int'l Airport",
+    airport_MNL: "Ninoy Aquino Int'l Airport"
   }
 };

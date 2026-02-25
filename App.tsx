@@ -116,7 +116,15 @@ const App: React.FC = () => {
     };
   }, [isComparisonOpen]);
 
-  const allAirports = [...DEFAULT_AIRPORTS, ...customAirports];
+  // Translate default airports
+  const translatedDefaultAirports = React.useMemo(() => {
+    return DEFAULT_AIRPORTS.map(ap => ({
+      ...ap,
+      name: t(`airport_${ap.code}` as any) || ap.name
+    }));
+  }, [t]);
+
+  const allAirports = [...translatedDefaultAirports, ...customAirports];
 
   const [results, setResults] = useState<Record<string, SearchState>>(() => {
     const initial: Record<string, SearchState> = {};
@@ -133,7 +141,26 @@ const App: React.FC = () => {
   }, [customAirports]);
 
   const loadManualData = useCallback(async (year: number) => {
-    const currentAirports = [...DEFAULT_AIRPORTS, ...customAirports];
+    // Re-calculate translated airports inside callback to ensure freshness if needed, 
+    // but we can rely on the component re-rendering and passing fresh data if we structure it right.
+    // However, this function is a dependency of useEffect.
+    // To avoid complex dependencies, we will reconstruct the list here using the current 't' if possible,
+    // or better, pass 'allAirports' as a dependency if we move this definition.
+    // But 'loadManualData' is called in useEffect which depends on 'customAirports' and 'language'.
+    
+    // We need to access the translated names here.
+    // Since we can't easily use the hook's result inside this callback without adding it to deps (which is fine),
+    // let's just reconstruct it.
+    
+    // Actually, we can just use the 'allAirports' from the component scope if we include it in the dependency array.
+    // But 'allAirports' changes when 't' changes (language changes).
+    
+    const currentTranslatedDefaults = DEFAULT_AIRPORTS.map(ap => ({
+      ...ap,
+      name: t(`airport_${ap.code}` as any) || ap.name
+    }));
+    
+    const currentAirports = [...currentTranslatedDefaults, ...customAirports];
 
     setResults(prev => {
         const next = { ...prev };
@@ -188,7 +215,7 @@ const App: React.FC = () => {
 
     await Promise.all(promises);
     setLastUpdated(new Date());
-  }, [customAirports, language]);
+  }, [customAirports, language, t]);
 
   // --- Auto-Detect Latest Month Logic ---
   useEffect(() => {
@@ -444,7 +471,7 @@ const App: React.FC = () => {
                           </div>
                           <div>
                               <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 leading-tight">
-                                {state?.data?.airportName || airport.name}
+                                {airport.name}
                               </h2>
                               {airport.isCustom && (
                                 <span className="inline-block mt-1 text-[10px] font-medium text-purple-600 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/30 px-2 py-0.5 rounded border border-purple-100 dark:border-purple-800">
