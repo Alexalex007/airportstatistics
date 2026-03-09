@@ -8,7 +8,7 @@ export const translations = {
     landingSubtitle: "探索亞太樞紐機場的數據脈動。\n從即時客運量到跨年度趨勢，盡在指尖。",
     startBtn: "啟動數據中心",
     feature1Title: "多機場監測",
-    feature1Desc: "HKG, TPE, SIN, BKK, ICN, MNL",
+    feature1Desc: "HKG, TPE, SIN, BKK, ICN, MNL, NRT",
     feature2Title: "趨勢比對",
     feature2Desc: "跨年份與跨機場數據可視化",
     feature3Title: "即時洞察",
@@ -63,7 +63,8 @@ export const translations = {
     airport_SIN: "新加坡樟宜國際機場",
     airport_BKK: "曼谷素萬那普國際機場",
     airport_ICN: "首爾仁川國際機場",
-    airport_MNL: "馬尼拉國際機場"
+    airport_MNL: "馬尼拉國際機場",
+    airport_NRT: "東京成田國際機場"
   },
   'zh-CN': {
     appTitle: "SkyMetrics",
@@ -72,7 +73,7 @@ export const translations = {
     landingSubtitle: "探索亚太枢纽机场的数据脉动。\n从即时客运量到跨年度趋势，尽在指尖。",
     startBtn: "启动数据中心",
     feature1Title: "多机场监测",
-    feature1Desc: "HKG, TPE, SIN, BKK, ICN, MNL",
+    feature1Desc: "HKG, TPE, SIN, BKK, ICN, MNL, NRT",
     feature2Title: "趋势比对",
     feature2Desc: "跨年份与跨机场数据可视化",
     feature3Title: "即时洞察",
@@ -127,7 +128,8 @@ export const translations = {
     airport_SIN: "新加坡樟宜国际机场",
     airport_BKK: "曼谷素万那普国际机场",
     airport_ICN: "首尔仁川国际机场",
-    airport_MNL: "马尼拉国际机场"
+    airport_MNL: "马尼拉国际机场",
+    airport_NRT: "东京成田国际机场"
   },
   'en': {
     appTitle: "SkyMetrics",
@@ -136,7 +138,7 @@ export const translations = {
     landingSubtitle: "Explore the pulse of Asia-Pacific aviation hubs.\nFrom real-time traffic to yearly trends, all at your fingertips.",
     startBtn: "Launch Dashboard",
     feature1Title: "Multi-Airport Monitor",
-    feature1Desc: "HKG, TPE, SIN, BKK, ICN, MNL",
+    feature1Desc: "HKG, TPE, SIN, BKK, ICN, MNL, NRT",
     feature2Title: "Trend Comparison",
     feature2Desc: "Cross-year & cross-airport visualization",
     feature3Title: "Real-time Insights",
@@ -191,6 +193,7 @@ export const translations = {
     airport_SIN: "Changi Airport",
     airport_BKK: "Suvarnabhumi Airport",
     airport_ICN: "Incheon Int'l Airport",
-    airport_MNL: "Ninoy Aquino Int'l Airport"
+    airport_MNL: "Ninoy Aquino Int'l Airport",
+    airport_NRT: "Tokyo Narita Int'l Airport"
   }
 };

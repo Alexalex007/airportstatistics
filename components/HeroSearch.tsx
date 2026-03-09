@@ -54,10 +54,10 @@ const HeroSearch: React.FC<HeroSearchProps> = ({
             <div className="flex items-center mt-5 w-full max-w-lg lg:max-w-xl">
                <Globe size={20} className="text-blue-600 dark:text-cyan-500 mr-3 shrink-0"/>
                <span className="hidden sm:block text-sm sm:text-base font-bold tracking-widest font-mono text-slate-700 dark:text-slate-300 truncate">
-                 HKG · TPE · SIN · BKK · ICN · MNL
+                 HKG · TPE · SIN · BKK · ICN · MNL · NRT
                </span>
                <div className="flex sm:hidden w-full justify-between items-center text-[13px] xs:text-sm font-bold font-mono text-slate-700 dark:text-slate-300">
-                  <span>HKG</span><span>TPE</span><span>SIN</span><span>BKK</span><span>ICN</span><span>MNL</span>
+                  <span>HKG</span><span>TPE</span><span>SIN</span><span>BKK</span><span>ICN</span><span>MNL</span><span>NRT</span>
                </div>
             </div>
           </div>
