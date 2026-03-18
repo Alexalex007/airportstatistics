@@ -27,6 +27,9 @@ const STORAGE_KEYS = {
   THEME: 'skymetrics_theme',
 };
 
+const HKG_BASELINE_2018 = [6128000, 5820000, 6398000, 6301000, 6038000, 6213000, 6661000, 6847000, 5566000, 6176000, 5995000, 6528000];
+const HKG_BASELINE_2019 = [6479000, 5879000, 6420000, 6491000, 6236000, 6347000, 6729000, 5994000, 4857000, 5367000, 5027000, 5716000];
+
 // Helper to calculate total passengers from chart data
 const calculateTotal = (data: AirportData | null): number => {
   if (!data || !data.chartData) return 0;
@@ -441,13 +444,19 @@ const App: React.FC = () => {
                 let footerCurrentSum = 0;
                 let footerPrevSum = 0;
                 let hasFooterData = false;
+                let footerBaseline2018Sum = 0;
+                let footerBaseline2019Sum = 0;
 
                 if (state?.data?.chartData) {
-                  state.data.chartData.forEach(item => {
+                  state.data.chartData.forEach((item, idx) => {
                     if (item.passengers > 0) {
                       footerCurrentSum += item.passengers;
                       if (item.comparison) footerPrevSum += item.comparison;
                       hasFooterData = true;
+                      if (airport.code === 'HKG') {
+                        footerBaseline2018Sum += HKG_BASELINE_2018[idx];
+                        footerBaseline2019Sum += HKG_BASELINE_2019[idx];
+                      }
                     }
                   });
                 }
@@ -571,6 +580,12 @@ const App: React.FC = () => {
                                             <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap text-slate-400 dark:text-slate-500">{selectedYear - 1} ({t('passengers')})</th>
                                             <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">{t('growthAmount')}</th>
                                             <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap">{t('growth')}</th>
+                                            {airport.code === 'HKG' && (
+                                              <>
+                                                <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap text-indigo-500 dark:text-indigo-400">{t('recovery2018')}</th>
+                                                <th className="px-4 sm:px-6 py-3 text-right whitespace-nowrap text-indigo-500 dark:text-indigo-400">{t('recovery2019')}</th>
+                                              </>
+                                            )}
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -609,6 +624,16 @@ const App: React.FC = () => {
                                                       {growth !== '-' ? (parseFloat(growth) > 0 ? '+' : '') + growth + '%' : '-'}
                                                     </span>
                                                   </td>
+                                                  {airport.code === 'HKG' && (
+                                                    <>
+                                                      <td className="px-4 sm:px-6 py-2.5 text-right font-mono text-indigo-600 dark:text-indigo-400 font-medium">
+                                                        {row.passengers > 0 ? ((row.passengers / HKG_BASELINE_2018[idx]) * 100).toFixed(1) + '%' : '-'}
+                                                      </td>
+                                                      <td className="px-4 sm:px-6 py-2.5 text-right font-mono text-indigo-600 dark:text-indigo-400 font-medium">
+                                                        {row.passengers > 0 ? ((row.passengers / HKG_BASELINE_2019[idx]) * 100).toFixed(1) + '%' : '-'}
+                                                      </td>
+                                                    </>
+                                                  )}
                                                 </tr>
                                               );
                                           })}
@@ -640,6 +665,16 @@ const App: React.FC = () => {
                                                   {footerGrowthStr !== '-' ? (parseFloat(footerGrowthStr) > 0 ? '+' : '') + footerGrowthStr + '%' : '-'}
                                                 </span>
                                             </td>
+                                            {airport.code === 'HKG' && (
+                                              <>
+                                                <td className="px-4 sm:px-6 py-3 text-right font-mono text-indigo-600 dark:text-indigo-400 font-bold">
+                                                  {hasFooterData && footerBaseline2018Sum > 0 ? ((footerCurrentSum / footerBaseline2018Sum) * 100).toFixed(1) + '%' : '-'}
+                                                </td>
+                                                <td className="px-4 sm:px-6 py-3 text-right font-mono text-indigo-600 dark:text-indigo-400 font-bold">
+                                                  {hasFooterData && footerBaseline2019Sum > 0 ? ((footerCurrentSum / footerBaseline2019Sum) * 100).toFixed(1) + '%' : '-'}
+                                                </td>
+                                              </>
+                                            )}
                                           </tr>
                                         </tfoot>
                                       </table>
