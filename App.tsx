@@ -433,46 +433,72 @@ const App: React.FC = () => {
 
           {viewMode === 'yearly' && (
             <div className="space-y-4 animate-in fade-in duration-500">
-              {allAirports.map((airport) => {
-                const state = results[airport.code];
-                if (!state && !airport.isCustom) return null;
+              {(() => {
+                const sortedAirports = [...allAirports].sort((a, b) => {
+                  const stateA = results[a.code];
+                  const stateB = results[b.code];
 
-                const isExpanded = expandedAirports.includes(airport.code);
-                const totalPassengers = calculateTotal(state?.data || null);
-                const growthRate = calculateGrowth(state?.data || null);
+                  const getMaxMonth = (state: SearchState | undefined) => {
+                    if (!state || !state.data || !state.data.chartData) return -1;
+                    let max = -1;
+                    state.data.chartData.forEach((item, index) => {
+                      if (item.passengers > 0) max = index;
+                    });
+                    return max;
+                  };
 
-                let footerCurrentSum = 0;
-                let footerPrevSum = 0;
-                let hasFooterData = false;
-                let footerBaseline2018Sum = 0;
-                let footerBaseline2019Sum = 0;
+                  const maxA = getMaxMonth(stateA);
+                  const maxB = getMaxMonth(stateB);
 
-                if (state?.data?.chartData) {
-                  state.data.chartData.forEach((item, idx) => {
-                    if (item.passengers > 0) {
-                      footerCurrentSum += item.passengers;
-                      if (item.comparison) footerPrevSum += item.comparison;
-                      hasFooterData = true;
-                      if (airport.code === 'HKG') {
-                        footerBaseline2018Sum += HKG_BASELINE_2018[idx];
-                        footerBaseline2019Sum += HKG_BASELINE_2019[idx];
+                  if (maxA !== maxB) {
+                    return maxB - maxA;
+                  }
+
+                  const totalA = calculateTotal(stateA?.data || null);
+                  const totalB = calculateTotal(stateB?.data || null);
+                  return totalB - totalA;
+                });
+
+                return sortedAirports.map((airport) => {
+                  const state = results[airport.code];
+                  if (!state && !airport.isCustom) return null;
+
+                  const isExpanded = expandedAirports.includes(airport.code);
+                  const totalPassengers = calculateTotal(state?.data || null);
+                  const growthRate = calculateGrowth(state?.data || null);
+
+                  let footerCurrentSum = 0;
+                  let footerPrevSum = 0;
+                  let hasFooterData = false;
+                  let footerBaseline2018Sum = 0;
+                  let footerBaseline2019Sum = 0;
+
+                  if (state?.data?.chartData) {
+                    state.data.chartData.forEach((item, idx) => {
+                      if (item.passengers > 0) {
+                        footerCurrentSum += item.passengers;
+                        if (item.comparison) footerPrevSum += item.comparison;
+                        hasFooterData = true;
+                        if (airport.code === 'HKG') {
+                          footerBaseline2018Sum += HKG_BASELINE_2018[idx];
+                          footerBaseline2019Sum += HKG_BASELINE_2019[idx];
+                        }
                       }
-                    }
-                  });
-                }
+                    });
+                  }
 
-                const footerDiff = footerCurrentSum - footerPrevSum;
-                const footerGrowthStr = (hasFooterData && footerPrevSum > 0) 
-                  ? ((footerCurrentSum - footerPrevSum) / footerPrevSum * 100).toFixed(1) 
-                  : '-';
+                  const footerDiff = footerCurrentSum - footerPrevSum;
+                  const footerGrowthStr = (hasFooterData && footerPrevSum > 0) 
+                    ? ((footerCurrentSum - footerPrevSum) / footerPrevSum * 100).toFixed(1) 
+                    : '-';
 
-                return (
-                  <div key={airport.code} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-all relative group hover:shadow-md dark:hover:shadow-slate-800/50">
-                    
-                    <div 
-                       onClick={() => toggleAirportExpansion(airport.code)}
-                       className="bg-white dark:bg-slate-900 border-b border-transparent dark:border-transparent cursor-pointer p-5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                    >
+                  return (
+                    <div key={airport.code} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-all relative group hover:shadow-md dark:hover:shadow-slate-800/50">
+                      
+                      <div 
+                         onClick={() => toggleAirportExpansion(airport.code)}
+                         className="bg-white dark:bg-slate-900 border-b border-transparent dark:border-transparent cursor-pointer p-5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                      >
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         
                         <div className="flex items-center">
@@ -694,7 +720,8 @@ const App: React.FC = () => {
                     )}
                   </div>
                 );
-              })}
+              });
+              })()}
             </div>
           )}
 
