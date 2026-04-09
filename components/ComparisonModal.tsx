@@ -304,10 +304,10 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
               </div>
 
               {/* View Mode Toggle (Grid Layout) */}
-              <div className="relative grid grid-cols-2 w-[220px] bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700/50">
+              <div className="relative grid grid-cols-2 w-[240px] bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-md shadow-inner">
                  <div 
                     className={`
-                      absolute inset-y-1 rounded-md shadow-sm transition-transform duration-300 ease-out z-0
+                      absolute inset-y-1 rounded-lg shadow-sm transition-transform duration-300 ease-out z-0
                       bg-white dark:bg-slate-600 ring-1 ring-black/5 dark:ring-white/5
                     `}
                     style={{
@@ -319,7 +319,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
 
                  <button
                    onClick={() => setViewMode('compare')}
-                   className={`relative z-10 w-full flex items-center justify-center gap-2 py-1.5 rounded-md text-xs font-bold transition-colors duration-300 ${
+                   className={`relative z-10 w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-colors duration-300 ${
                      viewMode === 'compare' 
                        ? 'text-blue-600 dark:text-blue-400' 
                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
@@ -330,7 +330,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                  </button>
                  <button
                    onClick={() => setViewMode('history')}
-                   className={`relative z-10 w-full flex items-center justify-center gap-2 py-1.5 rounded-md text-xs font-bold transition-colors duration-300 ${
+                   className={`relative z-10 w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-colors duration-300 ${
                      viewMode === 'history' 
                        ? 'text-purple-600 dark:text-purple-400' 
                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
@@ -532,6 +532,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       tickLine={false}
                       tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }}
                       dy={15}
+                      tickMargin={10}
                       interval="preserveStartEnd"
                     />
                     <YAxis 
@@ -562,13 +563,13 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                           type: "monotone" as const,
                           stroke: series.color,
                           strokeWidth: isHovered ? 4 : 3,
-                          strokeOpacity: isDimmed ? 0.15 : 1,
+                          strokeOpacity: isDimmed ? 0.4 : 1,
                           activeDot: <CustomActiveDot />,
                           dot: false,
                           connectNulls: true,
                           style: {
                               filter: isHovered ? `drop-shadow(0 0 8px ${series.color})` : 'none',
-                              transition: 'filter 0.3s ease'
+                              transition: 'filter 0.3s ease, stroke-opacity 0.3s ease'
                           }
                       };
 
@@ -578,7 +579,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                                 {...lineProps}
                                 fill={`url(#gradient-${series.id})`}
                                 fillOpacity={isDimmed ? 0.1 : 0.8}
-                                strokeOpacity={isDimmed ? 0.3 : 1}
+                                strokeOpacity={isDimmed ? 0.4 : 1}
                               />
                           );
                       } else {

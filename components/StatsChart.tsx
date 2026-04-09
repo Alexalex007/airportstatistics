@@ -142,7 +142,7 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={data}
-              margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+              margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
               barGap={0}
             >
               <defs>
@@ -174,6 +174,7 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
                 tickLine={false}
                 tick={{ fill: axisColor, fontSize: 12, fontWeight: 500 }}
                 dy={10}
+                tickMargin={10}
                 interval={0} 
               />
               

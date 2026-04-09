@@ -498,11 +498,11 @@ const App: React.FC = () => {
                     : '-';
 
                   return (
-                    <div key={airport.code} id={airport.code} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-all relative group hover:shadow-md dark:hover:shadow-slate-800/50">
+                    <div key={airport.code} id={airport.code} className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200/50 dark:border-slate-800/50 overflow-hidden transition-all relative group hover:shadow-lg dark:hover:shadow-slate-800/50">
                       
                       <div 
                          onClick={() => toggleAirportExpansion(airport.code)}
-                         className="bg-white dark:bg-slate-900 border-b border-transparent dark:border-transparent cursor-pointer p-5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                         className="bg-transparent border-b border-transparent dark:border-transparent cursor-pointer p-5 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
                       >
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         
@@ -569,7 +569,7 @@ const App: React.FC = () => {
                     </div>
 
                     {isExpanded && (
-                      <div className="p-4 sm:p-6 bg-slate-50/30 dark:bg-slate-950/30 border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-2 fade-in duration-300">
+                      <div className="p-4 sm:p-6 bg-slate-50/50 dark:bg-slate-950/50 backdrop-blur-sm border-t border-slate-100/50 dark:border-slate-800/50 animate-in slide-in-from-top-2 fade-in duration-300">
                         <div className="flex justify-end gap-2 mb-4">
                              <button 
                                  onClick={(e) => { e.stopPropagation(); openEditModal(airport); }}

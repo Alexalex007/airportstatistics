@@ -24,9 +24,9 @@ const Header: React.FC<HeaderProps> = ({ onOpenAddModal, theme, onToggleTheme, o
 
   // --- Dynamic Styling Logic ---
   const headerBgClass = isScrolled 
-    ? 'bg-white/90 dark:bg-slate-950/80 backdrop-blur-md shadow-sm border-b border-slate-200/50 dark:border-slate-800/50 py-3' 
+    ? 'bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shadow-sm border-b border-slate-200/50 dark:border-slate-800/50 py-3' 
     : theme === 'light'
-      ? 'bg-white/30 backdrop-blur-sm border-b border-white/20 py-4'
+      ? 'bg-white/30 backdrop-blur-md border-b border-white/20 py-4'
       : 'bg-transparent border-b border-transparent py-5';
 
   const textColorClass = theme === 'light'
