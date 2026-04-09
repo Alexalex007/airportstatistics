@@ -6,6 +6,8 @@ import AddDataModal from './components/AddDataModal';
 import ComparisonModal from './components/ComparisonModal';
 import MonthlyComparison from './components/MonthlyComparison';
 import LandingPage from './components/LandingPage';
+import ExternalLinksToolbar from './components/ExternalLinksToolbar';
+import AirportLinksModal from './components/AirportLinksModal';
 import { fetchAirportStats } from './services/geminiService';
 import { SearchState, AirportData, AirportDefinition } from './types';
 import { AlertCircle, Trash2, Edit, TrendingUp, TrendingDown, ArrowRight, BarChart2, ChevronDown } from 'lucide-react';
@@ -108,6 +110,7 @@ const App: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingData, setEditingData] = useState<{code: string, name: string, data: AirportData | null} | null>(null);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+  const [linksModalAirport, setLinksModalAirport] = useState<string | null>(null);
 
   useEffect(() => {
     if (isComparisonOpen) {
@@ -391,6 +394,8 @@ const App: React.FC = () => {
               </button>
             </div>
 
+            <ExternalLinksToolbar />
+
             {viewMode === 'monthly' && (
               <div className="animate-in slide-in-from-top-2 fade-in duration-300">
                 <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2">
@@ -493,7 +498,7 @@ const App: React.FC = () => {
                     : '-';
 
                   return (
-                    <div key={airport.code} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-all relative group hover:shadow-md dark:hover:shadow-slate-800/50">
+                    <div key={airport.code} id={airport.code} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-all relative group hover:shadow-md dark:hover:shadow-slate-800/50">
                       
                       <div 
                          onClick={() => toggleAirportExpansion(airport.code)}
@@ -502,9 +507,16 @@ const App: React.FC = () => {
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         
                         <div className="flex items-center">
-                          <div className={`flex items-center justify-center w-12 h-12 rounded-xl text-white font-bold text-lg shadow-sm mr-4 flex-shrink-0 ${airport.isCustom ? 'bg-gradient-to-br from-purple-500 to-indigo-600' : 'bg-gradient-to-br from-blue-500 to-cyan-600'}`}>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLinksModalAirport(airport.code);
+                            }}
+                            className={`flex items-center justify-center w-12 h-12 rounded-xl text-white font-bold text-lg shadow-sm mr-4 flex-shrink-0 transition-transform hover:scale-105 active:scale-95 ${airport.isCustom ? 'bg-gradient-to-br from-purple-500 to-indigo-600' : 'bg-gradient-to-br from-blue-500 to-cyan-600'}`}
+                            title={t('airportLinksTitle')}
+                          >
                             {airport.code}
-                          </div>
+                          </button>
                           <div>
                               <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 leading-tight">
                                 {airport.name}
@@ -751,6 +763,12 @@ const App: React.FC = () => {
         allAirports={allAirports}
         results={results}
         year={selectedYear}
+      />
+
+      <AirportLinksModal
+        isOpen={!!linksModalAirport}
+        onClose={() => setLinksModalAirport(null)}
+        airportCode={linksModalAirport || ''}
       />
 
       <footer className="bg-slate-900 dark:bg-slate-950 text-slate-400 py-8 border-t border-slate-800">
