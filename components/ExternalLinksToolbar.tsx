@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ExternalLink, PlaneTakeoff, Newspaper, LineChart, PieChart, Link2, ChevronDown } from 'lucide-react';
+import { ExternalLink, PlaneTakeoff, Newspaper, LineChart, PieChart, Link2, ChevronDown, Database, Compass } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -43,6 +43,24 @@ const ExternalLinksToolbar: React.FC = () => {
       color: 'text-purple-600 dark:text-purple-400',
       bg: 'bg-purple-100 dark:bg-purple-900/30',
       border: 'border-purple-200 dark:border-purple-800'
+    },
+    {
+      id: 'bitre',
+      title: t('linkBITRE'),
+      url: 'https://www.bitre.gov.au/resource/aviation/international-airline-activity-time-series-data',
+      icon: <Database size={18} />,
+      color: 'text-rose-600 dark:text-rose-400',
+      bg: 'bg-rose-100 dark:bg-rose-900/30',
+      border: 'border-rose-200 dark:border-rose-800'
+    },
+    {
+      id: 'caa',
+      title: t('linkCAA'),
+      url: 'https://www.caa.co.uk/data-and-analysis/uk-aviation-market/',
+      icon: <Compass size={18} />,
+      color: 'text-indigo-600 dark:text-indigo-400',
+      bg: 'bg-indigo-100 dark:bg-indigo-900/30',
+      border: 'border-indigo-200 dark:border-indigo-800'
     }
   ];
 
@@ -78,7 +96,7 @@ const ExternalLinksToolbar: React.FC = () => {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-t border-slate-100 dark:border-slate-800 mt-2 pt-4">
+            <div className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 border-t border-slate-100 dark:border-slate-800 mt-2 pt-4">
               {links.map((link) => (
                 <a
                   key={link.id}
