@@ -77,24 +77,24 @@ const MonthlyComparison: React.FC<MonthlyComparisonProps> = ({ data, year, month
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       {/* 1. Header & Summary */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl p-6 border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
+         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
                <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-3">
                  <span className="text-blue-600 dark:text-blue-400">{year} {t('fullMonths')[monthIndex]}</span> 
                </h2>
-               <p className="text-slate-500 dark:text-slate-400 mt-1">
-                 {t('totalPassengers')}: <span className="font-mono font-bold text-slate-700 dark:text-slate-200">{new Intl.NumberFormat('zh-TW').format(data.reduce((a, b) => a + b.value, 0))}</span> {t('passengers')}
+               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                 {t('monthlyRanking')}
                </p>
             </div>
             
             {/* Champion Badge */}
-            <div className="flex items-center gap-3 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/10 dark:to-orange-900/10 px-4 py-3 rounded-xl border border-yellow-100 dark:border-yellow-900/30">
+            <div className="flex items-center gap-3 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 px-4 py-2.5 rounded-xl border border-yellow-200/60 dark:border-yellow-900/40 shadow-sm">
                <div className="bg-yellow-100 dark:bg-yellow-600/20 p-2 rounded-full text-yellow-600 dark:text-yellow-400">
                  <Trophy size={20} />
                </div>
                <div>
-                  <div className="text-xs font-bold text-yellow-700 dark:text-yellow-500 uppercase tracking-wider">Top 1</div>
+                  <div className="text-[10px] font-bold text-yellow-700 dark:text-yellow-400 uppercase tracking-wider">Top 1</div>
                   <div className="text-lg font-black text-slate-800 dark:text-slate-100 leading-none">
                      {sortedData[0].code}
                   </div>

@@ -110,6 +110,7 @@ const App: React.FC = () => {
   const [editingData, setEditingData] = useState<{code: string, name: string, data: AirportData | null} | null>(null);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const [linksModalAirport, setLinksModalAirport] = useState<string | null>(null);
+  const [highlightedMonthByAirport, setHighlightedMonthByAirport] = useState<Record<string, number | null>>({});
 
   useEffect(() => {
     if (isComparisonOpen) {
@@ -408,7 +409,7 @@ const App: React.FC = () => {
                             relative flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300
                             border
                             ${isSelected 
-                              ? 'text-white border-purple-500 shadow-md transform scale-105' 
+                              ? 'text-white border-purple-500 shadow-md shadow-purple-500/20' 
                               : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700'}
                          `}
                        >
@@ -604,6 +605,13 @@ const App: React.FC = () => {
                                 data={state.data.chartData} 
                                 title={t('yearlyTrend')}
                                 isDarkMode={theme === 'dark'}
+                                highlightedIndex={highlightedMonthByAirport[airport.code] ?? null}
+                                onSelectIndex={(idx) => {
+                                  setHighlightedMonthByAirport(prev => ({
+                                    ...prev,
+                                    [airport.code]: prev[airport.code] === idx ? null : idx
+                                  }));
+                                }}
                               />
                               
                               {state.data.chartData.some(d => d.passengers > 0 || (d.comparison && d.comparison > 0)) && (
@@ -633,10 +641,29 @@ const App: React.FC = () => {
                                               const hasPrev = row.comparison && row.comparison > 0;
                                               const growth = (hasCurrent && hasPrev) ? ((row.passengers - row.comparison!) / row.comparison! * 100).toFixed(1) : '-';
                                               const growthAmount = (hasCurrent && hasPrev) ? (row.passengers - row.comparison!) : null;
+                                              const isRowHighlighted = highlightedMonthByAirport[airport.code] === idx;
                                                   
                                               return (
-                                                <tr key={idx} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
-                                                  <td className="px-4 sm:px-6 py-2.5 font-medium text-slate-900 dark:text-slate-200">{t('months')[idx]}</td>
+                                                <tr 
+                                                  key={idx} 
+                                                  onClick={() => {
+                                                    setHighlightedMonthByAirport(prev => ({
+                                                      ...prev,
+                                                      [airport.code]: prev[airport.code] === idx ? null : idx
+                                                    }));
+                                                  }}
+                                                  className={`cursor-pointer transition-all duration-200 ${
+                                                    isRowHighlighted 
+                                                      ? 'bg-blue-50/90 dark:bg-blue-900/30 font-semibold ring-1 ring-inset ring-blue-400/40' 
+                                                      : 'hover:bg-blue-50/40 dark:hover:bg-blue-900/15'
+                                                  }`}
+                                                >
+                                                  <td className="px-4 sm:px-6 py-2.5 font-medium text-slate-900 dark:text-slate-200 flex items-center gap-2">
+                                                    {isRowHighlighted && (
+                                                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                                                    )}
+                                                    {t('months')[idx]}
+                                                  </td>
                                                   <td className="px-4 sm:px-6 py-2.5 text-right font-mono text-slate-700 dark:text-slate-300 font-medium">
                                                       {row.passengers > 0 ? new Intl.NumberFormat('zh-TW').format(row.passengers) : <span className="text-slate-300 dark:text-slate-600">-</span>}
                                                   </td>

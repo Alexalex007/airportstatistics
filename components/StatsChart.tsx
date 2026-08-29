@@ -9,6 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  Cell,
   defs,
   linearGradient,
   stop
@@ -21,6 +22,8 @@ interface StatsChartProps {
   data: ChartDataPoint[];
   title: string;
   isDarkMode?: boolean;
+  highlightedIndex?: number | null;
+  onSelectIndex?: (index: number) => void;
 }
 
 const CustomTooltip = ({ active, payload, label, isDarkMode, t }: any) => {
@@ -103,7 +106,13 @@ const CustomTooltip = ({ active, payload, label, isDarkMode, t }: any) => {
   return null;
 };
 
-const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false }) => {
+const StatsChart: React.FC<StatsChartProps> = ({ 
+  data, 
+  title, 
+  isDarkMode = false,
+  highlightedIndex = null,
+  onSelectIndex
+}) => {
   const { t } = useLanguage();
 
   const formatNumber = (num: number) => {
@@ -131,10 +140,18 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
 
   return (
     <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col">
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100 border-l-4 border-blue-500 pl-3">
           {title}
         </h3>
+        {highlightedIndex !== null && highlightedIndex !== undefined && data[highlightedIndex] && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg animate-in fade-in duration-200">
+            <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></div>
+            <span className="text-xs font-bold text-blue-600 dark:text-cyan-400">
+              {data[highlightedIndex].period}: {new Intl.NumberFormat('zh-TW').format(data[highlightedIndex].passengers)} {t('passengers')}
+            </span>
+          </div>
+        )}
       </div>
       
       <div className="w-full overflow-x-auto pb-2 custom-scrollbar">
@@ -148,11 +165,22 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
               <defs>
                 <linearGradient id="colorCurrentLight" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
-                  <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.8}/>
+                  <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.85}/>
                 </linearGradient>
                 <linearGradient id="colorCurrentDark" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#60a5fa" stopOpacity={1}/>
-                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.85}/>
+                </linearGradient>
+                {/* Luminous Highlight Gradients */}
+                <linearGradient id="colorHighlightLight" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#2563eb" stopOpacity={1}/>
+                  <stop offset="50%" stopColor="#06b6d4" stopOpacity={1}/>
+                  <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.95}/>
+                </linearGradient>
+                <linearGradient id="colorHighlightDark" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#38bdf8" stopOpacity={1}/>
+                  <stop offset="50%" stopColor="#818cf8" stopOpacity={1}/>
+                  <stop offset="100%" stopColor="#c084fc" stopOpacity={0.95}/>
                 </linearGradient>
                 <linearGradient id="colorPrev" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={isDarkMode ? '#cbd5e1' : '#64748b'} stopOpacity={0.25}/>
@@ -179,8 +207,8 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
               />
               
               <YAxis 
-                axisLine={false}
-                tickLine={false}
+                axisLine={false} 
+                tickLine={false} 
                 tick={{ fill: axisColor, fontSize: 11 }}
                 tickFormatter={formatNumber}
                 width={45}
@@ -220,11 +248,34 @@ const StatsChart: React.FC<StatsChartProps> = ({ data, title, isDarkMode = false
               <Bar 
                 dataKey="passengers" 
                 name="passengers" 
-                fill={isDarkMode ? "url(#colorCurrentDark)" : "url(#colorCurrentLight)"}
                 radius={[6, 6, 0, 0]} 
                 maxBarSize={60}
                 animationDuration={1000}
-              />
+                onClick={(_entry, index) => onSelectIndex?.(index)}
+                className="cursor-pointer"
+              >
+                {data.map((_entry, index) => {
+                  const isHighlighted = highlightedIndex === index;
+                  return (
+                    <Cell 
+                      key={`bar-cell-${index}`}
+                      fill={
+                        isHighlighted 
+                          ? (isDarkMode ? "url(#colorHighlightDark)" : "url(#colorHighlightLight)")
+                          : (isDarkMode ? "url(#colorCurrentDark)" : "url(#colorCurrentLight)")
+                      }
+                      stroke={isHighlighted ? (isDarkMode ? '#38bdf8' : '#1d4ed8') : 'transparent'}
+                      strokeWidth={isHighlighted ? 2.5 : 0}
+                      style={{
+                        filter: isHighlighted 
+                          ? (isDarkMode ? 'drop-shadow(0 0 10px rgba(56, 189, 248, 0.8))' : 'drop-shadow(0 0 8px rgba(37, 99, 235, 0.5))') 
+                          : 'none',
+                        transition: 'filter 0.3s ease, stroke 0.3s ease'
+                      }}
+                    />
+                  );
+                })}
+              </Bar>
               
             </ComposedChart>
           </ResponsiveContainer>
