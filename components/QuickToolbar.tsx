@@ -25,7 +25,6 @@ const OFFICIAL_LINKS: Record<string, string> = {
   'SIN': 'https://www.changiairport.com',
   'BKK': 'https://www.airportthai.co.th',
   'ICN': 'https://www.airport.kr',
-  'MNL': 'https://www.miaa.gov.ph',
   'NRT': 'https://www.naa.jp'
 };
 

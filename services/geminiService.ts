@@ -181,38 +181,6 @@ const AIRPORT_RAW_DATA: Record<string, {
       2023: [3845153, 3730499, 3909015, 4048187, 4394892, 4618738, 5239356, 5440372, 4846532, 5372752, 5079595, 5605973]
     }
   },
-  "MNL": {
-    name: {
-      'zh-TW': "馬尼拉國際機場",
-      'zh-CN': "马尼拉国际机场",
-      'en': "Ninoy Aquino Int'l Airport"
-    },
-    sources: [{ title: "Manila International Airport Authority", uri: "https://www.miaa.gov.ph" }],
-    summaries: {
-      2026: { 'zh-TW': "2026年數據尚未發布。", 'zh-CN': "2026年数据尚未发布。", 'en': "Data for 2026 is not yet released." },
-      2025: {
-         'zh-TW': "2025年數據截至9月，累計客運量達 3,851 萬人次，較 2024 年同期成長約 3.8%。其中 1 月創下 471 萬人次高峰。",
-         'zh-CN': "2025年数据截至9月，累计客运量达 3,851 万人次。其中 1 月创下 471 万人次高峰。",
-         'en': "As of Sep 2025, cumulative passengers reached 38.51 million, up 3.8% YoY. January hit a peak of 4.71 million."
-      },
-      2024: {
-         'zh-TW': "2024年全年客運量達 4,939 萬人次，較 2023 年增長約 10.0%。單月客運量於 12 月達到 461 萬人次高峰。",
-         'zh-CN': "2024年全年客运量达 4,939 万人次，较 2023 年增长约 10.0%。",
-         'en': "Total passengers in 2024 reached 49.39 million, up 10.0% from 2023. Monthly traffic peaked at 4.61 million in December."
-      },
-      2023: {
-         'zh-TW': "2023年全年客運量為 4,488 萬人次。隨著旅遊限制解除，客運量穩步回升。",
-         'zh-CN': "2023年全年客运量为 4,488 万人次。",
-         'en': "Total passengers in 2023 were 44.88 million. Traffic recovered steadily as restrictions eased."
-      }
-    },
-    stats: {
-      2026: [],
-      2025: [4714582, 4094453, 4133627, 4355128, 4580414, 4503674, 4282082, 4191687, 3659151],
-      2024: [4230040, 3923552, 4078029, 4028539, 4054670, 4435938, 4424971, 4139386, 3798284, 3820881, 4240647, 4617444],
-      2023: [3765619, 3369471, 3425097, 3669094, 3807195, 3801404, 4188043, 3953622, 3384409, 3652292, 3770622, 4101582]
-    }
-  },
   "NRT": {
     name: {
       'zh-TW': "東京成田國際機場",
